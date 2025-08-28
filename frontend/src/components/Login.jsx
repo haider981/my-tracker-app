@@ -27,8 +27,8 @@ export default function Login() {
 
   const handleCredentialResponse = async (response) => {
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/google", {
-      // const res = await axios.post("https://tracker-9znm.onrender.com/api/auth/google", {
+      // const res = await axios.post("http://localhost:5000/api/auth/google", {
+      const res = await axios.post("https://my-tracker-app-3fqn.onrender.com/api/auth/google", {
         idToken: response.credential,
       });
 
