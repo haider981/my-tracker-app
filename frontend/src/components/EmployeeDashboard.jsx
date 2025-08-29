@@ -27,11 +27,10 @@ export default function EmployeeDashboard() {
   const WORK_MODES = ["Leave", "In Office", "WFH", "On Duty", "Half Day", "OT Home", "OT Office", "Night"];
   const STATUS = ["In Progress", "Delayed", "Completed", "Not approved"];
   const HOURS = ["0.5","1","1.5","2","2.5","3","3.5","4","4.5","5","5.5","6","6.5","7","7.5","8"];
-  const TASKS = ["COM","CR1","CR2","CR3","CR4","SET","FER","FINAL","Coord","Meet"];
-  const BASE_BOOK_ELEMENTS = ["Chapter","Mind Map","Title","Diagram","Solution","Illustration","Papers","Lesson Plan","Miscellaneous","Projects","Booklet"];
-  const BASE_CHAPTER_NUMBERS = [
-    "Papers","Full Book","Miscellaneous","Projects","Unit 1","Unit 2","Unit 3","Unit 4","Unit 5",
-    ...Array.from({length:40},(_,i)=>String(i+1))
+  const TASKS = ["CMPL-MS","VRF-MS","DRF","TAL","R1","R2","R3","R4","CR","FER","SET","FINAL","MEET","QRY","Coord","GLANCE","Research","Analysis","KT","Interview","PLAN"];
+  const BASE_BOOK_ELEMENTS = ["Theory","Exercise","Chapter","Full book","Mind Map","Diagram","Solution","Booklet","Full Video","AVLR-VO","DLR","Lesson Plan","Miscellaneous","AVLR-Ideation","Marketing","Development","Recruitment"];
+  const BASE_CHAPTER_NUMBERS = ["Title","Syllabus","Content","Projects","Papers","Miscellaneous", "Appendix","Full Book",
+    ...Array.from({length:40}, (_, i) => String(i+1))
   ];
   const UNITS = [
     { label: "pages", value: "pages" },
