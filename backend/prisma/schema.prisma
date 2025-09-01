@@ -33,16 +33,16 @@ model ProjectRecords {
 
 model MasterDatabase {
   id               Int       @id @default(autoincrement())
-  date             DateTime
-  work_mode        String
-  project_name     String
-  task_name        String
-  book_element     String
-  chapter_number   String
-  hours_spent      Float
-  number_of_units  Int
-  unit_type        String
-  status           String
+  date             DateTime?
+  work_mode        String?
+  project_name     String?
+  task_name        String?
+  book_element     String?
+  chapter_number   String?
+  hours_spent      Float?
+  number_of_units  Int?
+  unit_type        String?
+  status           String?
   due_on           DateTime?
   details          String?
   audit_status     String?
