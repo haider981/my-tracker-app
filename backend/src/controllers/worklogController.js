@@ -156,6 +156,26 @@ exports.submitWorklogs = async (req, res) => {
         remarks: "", // blank
       }];
     }
+     else {
+      // If "Half Day" work mode exists, push an extra leave entry of 3.25 hrs
+      const hasHalfDay = finalEntries.some(e => e.workMode === "Half Day");
+      if (hasHalfDay) {
+        finalEntries.push({
+          date: dateOnly,
+          workMode: "Leave",
+          projectId: "", // blank
+          task: "", // blank
+          bookElement: "", // blank
+          chapterNo: "", // blank
+          hoursSpent: 3.75, // half day leave
+          noOfUnits: 0, // blank/0
+          unitsType: "general", // default
+          status: "", // blank
+          dueOn: null, // blank
+          remarks: "", // blank
+        });
+      }
+    }
 
     const data = finalEntries.map((e) => ({
       date: dateOnly,
