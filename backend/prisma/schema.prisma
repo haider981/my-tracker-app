@@ -43,7 +43,7 @@ model MasterDatabase {
   number_of_units  Int
   unit_type        String
   status           String
-  due_on           DateTime
+  due_on           DateTime?
   details          String
   audit_status     String?
   name             String
