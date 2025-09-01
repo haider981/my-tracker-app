@@ -44,7 +44,7 @@ model MasterDatabase {
   unit_type        String
   status           String
   due_on           DateTime?
-  details          String
+  details          String?
   audit_status     String?
   name             String
   team             String
