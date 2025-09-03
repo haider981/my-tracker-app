@@ -1,0 +1,12 @@
+const express = require('express');
+const router = express.Router();
+const SpocController = require('../controllers/spocController');
+const authenticateToken = require("../middleware/auth");
+
+// Routes - Note: Using SpocController.methodName instead of importing methods directly
+router.get('/worklogs/pending', authenticateToken, SpocController.getPendingWorklogs);
+router.put('/worklogs/update-status', authenticateToken, SpocController.updateWorklogStatus);
+router.get('/worklogs/summary', authenticateToken, SpocController.getWorklogSummary);
+router.get('/employees', authenticateToken, SpocController.getEmployeesUnderSpoc);
+
+module.exports = router;
