@@ -5,6 +5,7 @@ const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const worklogRoutes = require("./routes/worklogRoutes");
+const spocRoutes = require('./routes/spocRoutes'); 
 
 const app = express();
 
