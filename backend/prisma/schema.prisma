@@ -28,7 +28,11 @@ model Users {
 model ProjectRecords {
   project_id   String   @id
   project_name String
-  due_date     DateTime
+  due_date     DateTime?
+  audit_status String   @default("In Review")
+  start_date   DateTime?
+  name String
+  email String
 }
 
 model MasterDatabase {
@@ -51,4 +55,39 @@ model MasterDatabase {
 
   @@map("MasterDatabase")
   
+}
+model MarkShift{
+  date DateTime   @id
+  name       String     // employee name
+  email      String     // employee email
+  spoc_name   String
+  spoc_email  String
+  shift_date  DateTime?
+  shift_type  ShiftType?
+}
+
+enum ShiftType {
+  NIGHT
+  SUNDAY
+}
+
+model TodaysWorklog {
+  id              Int      @id @default(autoincrement())
+  date            DateTime 
+  work_mode       String
+  project_name    String?
+  task_name       String
+  book_element    String?
+  chapter_number  String?  
+  hours_spent     Float?  
+  number_of_units Int ?   
+  unit_type       String?   
+  status          String?
+  due_on          DateTime? 
+  details         String?  
+  name            String
+  team            String   
+
+  @@index([name, date])
+  @@map("TodaysWorklog")
 }
