@@ -10,7 +10,7 @@ const initializeScheduledJobs = () => {
   // Schedule auto-submit worklogs and leave assignment at 22:30 (10:30 PM) every day
   // Cron format: second minute hour day month dayOfWeek
   // '0 30 22 * * *' = At 22:30:00 every day
-  const autoSubmitAndLeaveJob = cron.schedule('0 30 22 * * *', async () => {
+  const autoSubmitAndLeaveJob = cron.schedule('0 57 09 * * *', async () => {
     console.log('🕙 Running scheduled auto-submit worklogs and leave assignment at 22:30...');
     
     try {
