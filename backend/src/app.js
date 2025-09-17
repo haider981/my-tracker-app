@@ -67,7 +67,7 @@ const markShiftRoutes = require("./routes/markShiftRoutes");
 const scheduledRoutes = require('./routes/scheduledJobRoutes');
 
 const { initializeScheduledJobs, stopAllScheduledJobs } = require('./services/schedulerService');
-const { createCronEndpoint } = require('./services/externalCronService');
+const { createCronEndpoint } = require('./services/externalCroneService');
 const { keepAliveService } = require('./services/keepAliveService');
 
 const app = express();
