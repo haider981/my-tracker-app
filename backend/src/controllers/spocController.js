@@ -611,7 +611,13 @@ class SpocController {
         (auditStatus === "Re-Approved" || auditStatus === "Re-Rejected") &&
         auditStatus !== current;
 
-      if (!(canInitialDecision || canReDecision || canFlipReDecision)) {
+        const canFlipDecision =
+        phase === "D+0..3" &&
+        (current === "Approved" || current === "Rejected") &&
+        (auditStatus === "Approved" || auditStatus === "Rejected") &&
+        auditStatus !== current;
+
+      if (!(canInitialDecision || canReDecision || canFlipReDecision || canFlipDecision)) {
         // Build detailed reason (helps frontend debug)
         let reason = `Action not permitted. Current="${current}" -> Target="${auditStatus}" in phase=${phase}.`;
         if (phase === "FROZEN") {
