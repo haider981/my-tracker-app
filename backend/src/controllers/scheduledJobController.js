@@ -21,7 +21,7 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
     const allUsers = await prisma.users.findMany({
       where: {
         team: {
-            in: ["Editorial_Maths", "Editorial_Science", "CSMA_Science"]
+            in: ["Editorial_Maths", "Editorial_Science", "Editorial_SST"]
           }
       },
       select: {
