@@ -91,3 +91,13 @@ model TodaysWorklog {
   @@index([name, date])
   @@map("TodaysWorklog")
 }
+
+model Abbreviations {
+  id           Int     @id @default(autoincrement())
+  full_name    String  
+  abbreviation String  
+  type         String  
+  segment      String  
+
+  @@map("Abbreviations")
+}
