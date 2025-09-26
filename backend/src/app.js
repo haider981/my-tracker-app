@@ -72,6 +72,7 @@ const adminProjectRequestRoutes = require('./routes/adminProjectRequestRoutes');
 const adminAddProjectRoutes = require('./routes/adminAddProjectRoutes');
 const abbreviationsRoutes = require('./routes/abbreviationsRoutes');
 const adminAddAbbreviationRoutes = require('./routes/adminAddAbbreviationRoutes');
+const spocAbbreviationRoutes = require('./routes/spocAbbreviationRoutes');
 
 const { initializeScheduledJobs, stopAllScheduledJobs } = require('./services/schedulerService');
 const { createCronEndpoint } = require('./services/externalCroneService');
@@ -92,6 +93,7 @@ app.use("/api/worklogs", worklogRoutes);
 app.use("/api/spoc/projects", spocAddProjectRoutes);
 app.use("/api/shifts", markShiftRoutes);
 app.use('/api/admin', scheduledRoutes);
+app.use('/api/spoc/abbreviations', spocAbbreviationRoutes);
 
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin', adminEditWorklogRoutes);
