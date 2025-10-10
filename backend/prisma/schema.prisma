@@ -20,7 +20,8 @@ model Users {
   spoc_name  String
   spoc_email String
   team  String
-  role  Role
+  sub_team String
+  role  String?
   // optional createdAt for bookkeeping
   //createdAt DateTime @default(now())
 }
@@ -52,6 +53,11 @@ model MasterDatabase {
   audit_status     String?
   name             String
   team             String
+
+  added_by_admin     Boolean   @default(false)
+  edited_by_admin    Boolean   @default(false) 
+  admin_action_by    String?   // admin's name/email
+  admin_action_date  DateTime?
 
   @@map("MasterDatabase")
   
