@@ -107,3 +107,12 @@ model Abbreviations {
 
   @@map("Abbreviations")
 }
+
+model TeamWiseDropdowns {
+  id           Int     @id @default(autoincrement())
+  values       String
+  column_header String
+  team         String
+
+  @@map("TeamWiseDropdowns")
+}
