@@ -90,7 +90,7 @@ const updateDropdownValue = async (req, res) => {
     if (!teamName || !columnHeader || !oldValue || !newValue)
       return res.status(400).json({ success: false, message: 'All fields are required' });
 
-    const validHeaders = ['book_element', 'chapter_number', 'task_name'];
+    const validHeaders = ['book_element', 'chapter_number', 'task'];
     if (!validHeaders.includes(columnHeader))
       return res.status(400).json({ success: false, message: 'Invalid column header' });
 
