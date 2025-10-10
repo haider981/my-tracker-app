@@ -25,8 +25,12 @@
 //     const role = userRow ? userRow.role : "EMPLOYEE";
 //     const team = userRow ? userRow.team : null;
 
-//     // Sign JWT
-//     const token = jwt.sign({ email, name, role, team, picture }, process.env.JWT_SECRET, { expiresIn: "8h" });
+//     // Sign JWT with 15-hour expiration
+//     const token = jwt.sign(
+//       { email, name, role, team, picture }, 
+//       process.env.JWT_SECRET, 
+//       { expiresIn: "12h" } // Changed from "8h" to "12h"
+//     );
 
 //     return res.json({
 //       success: true,
@@ -38,6 +42,7 @@
 //     return res.status(401).json({ success: false, message: "Invalid ID token" });
 //   }
 // };
+
 
 const { OAuth2Client } = require("google-auth-library");
 const jwt = require("jsonwebtoken");
@@ -63,12 +68,14 @@ exports.googleAuth = async (req, res) => {
 
     // Lookup predefined role in DB
     const userRow = await prisma.users.findUnique({ where: { email } });
-    const role = userRow ? userRow.role : "EMPLOYEE";
+    // const role = userRow ? userRow.role : "EMPLOYEE";
+    const role = userRow ? userRow.role : "Employee";
     const team = userRow ? userRow.team : null;
+    const sub_team = userRow ? userRow.sub_team : null;
 
     // Sign JWT with 15-hour expiration
     const token = jwt.sign(
-      { email, name, role, team, picture }, 
+      { email, name, role, team,sub_team,picture }, 
       process.env.JWT_SECRET, 
       { expiresIn: "12h" } // Changed from "8h" to "12h"
     );
@@ -76,12 +83,10 @@ exports.googleAuth = async (req, res) => {
     return res.json({
       success: true,
       token,
-      user: { email, name, role, team, picture },
+      user: { email, name, role, team,sub_team,picture },
     });
   } catch (err) {
     console.error("Auth error", err);
     return res.status(401).json({ success: false, message: "Invalid ID token" });
   }
 };
-
-
