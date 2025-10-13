@@ -156,6 +156,9 @@ app.use('/api/admin/abbreviations', abbreviationsRoutes);
 app.use('/api/abbreviations', adminAddAbbreviationRoutes);
 app.use('/api/teamwise-dropdowns', teamWiseDropdownRoutes);
 
+// Create external cron endpoint (NEW)
+createCronEndpoint(app);
+
 // Health check (Enhanced)
 app.get("/health", (req, res) => {
   res.json({ 
