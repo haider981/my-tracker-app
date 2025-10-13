@@ -353,8 +353,10 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
 
     // Get all users from the database
     const allUsers = await prisma.users.findMany({
-      where: {
-        team: "CSMA_Intern"
+     where: {
+        team: {
+            in: ["Editorial_Maths", "Editorial_Science", "Editorial_SST"]
+          }
       },
       select: {
         email: true,
