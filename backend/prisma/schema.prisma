@@ -92,7 +92,8 @@ model TodaysWorklog {
   due_on          DateTime? 
   details         String?  
   name            String
-  team            String   
+  team            String
+  created_at      DateTime  @default(now())
 
   @@index([name, date])
   @@map("TodaysWorklog")
