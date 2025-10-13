@@ -180,6 +180,7 @@ exports.saveTodaysWorklog = async (req, res) => {
       details: entry.remarks || "",
       name,
       team: team || "",
+      created_at: new Date(),
     };
 
     const result = await prisma.todaysWorklog.create({ data });
