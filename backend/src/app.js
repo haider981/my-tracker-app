@@ -128,6 +128,8 @@ const adminAddAbbreviationRoutes = require('./routes/adminAddAbbreviationRoutes'
 const teamWiseDropdownRoutes = require('./routes/teamWiseDropdownRoutes');
 
 const { initializeScheduledJobs, stopAllScheduledJobs } = require('./services/schedulerService');
+const { createCronEndpoint } = require('./services/externalCroneService');
+const { keepAliveService } = require('./services/keepAliveService');
 
 
 const app = express();
@@ -154,22 +156,57 @@ app.use('/api/admin/abbreviations', abbreviationsRoutes);
 app.use('/api/abbreviations', adminAddAbbreviationRoutes);
 app.use('/api/teamwise-dropdowns', teamWiseDropdownRoutes);
 
+// Health check (Enhanced)
+app.get("/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    env: process.env.NODE_ENV || 'development'
+  });
+});
 
+// Initialize scheduled jobs
 const scheduledJobs = initializeScheduledJobs();
 
-// Graceful shutdown handling
+// Start keep-alive service only in production (NEW)
+if (process.env.NODE_ENV === 'production') {
+  keepAliveService.start();
+  console.log('🔄 Keep-alive service started for production environment');
+}
+
+// Graceful shutdown handling (Enhanced)
 process.on('SIGINT', () => {
   console.log('\nReceived SIGINT. Graceful shutdown...');
+  if (process.env.NODE_ENV === 'production') {
+    keepAliveService.stop();
+  }
   stopAllScheduledJobs();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   console.log('\nReceived SIGTERM. Graceful shutdown...');
+  if (process.env.NODE_ENV === 'production') {
+    keepAliveService.stop();
+  }
   stopAllScheduledJobs();
   process.exit(0);
 });
-// Health check
-app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+// Handle uncaught exceptions (NEW)
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  if (process.env.NODE_ENV === 'production') {
+    keepAliveService.stop();
+  }
+  stopAllScheduledJobs();
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 module.exports = app;
