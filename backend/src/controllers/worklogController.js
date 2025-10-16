@@ -378,31 +378,105 @@ exports.resubmitRejectedWorklog = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
+// exports.getTeamWiseDropdowns = async (req, res) => {
+//   try {
+//     const { sub_team } = req.user || {};
+    
+//     if (!sub_team) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: "Sub-team not found in user token" 
+//       });
+//     }
+
+//     // Fetch all dropdown values for this sub_team
+//     const dropdowns = await prisma.teamWiseDropdowns.findMany({
+//       where: {
+//         team: {
+//           equals: sub_team,
+//           mode: "insensitive"
+//         }
+//       },
+//       select: {
+//         id: true,
+//         values: true,
+//         column_header: true,
+//         team: true
+//       }
+//     });
+
+//     if (dropdowns.length === 0) {
+//       return res.json({
+//         success: true,
+//         message: "No custom dropdowns found for this team",
+//         dropdowns: {
+//           bookElements: [],
+//           taskNames: [],
+//           chapterNumbers: []
+//         }
+//       });
+//     }
+
+//     // Group by column_header
+//     const grouped = {
+//       bookElements: [],
+//       taskNames: [],
+//       chapterNumbers: []
+//     };
+
+//     dropdowns.forEach(item => {
+//       const header = item.column_header.toLowerCase();
+      
+//       if (header === 'book_element') {
+//         grouped.bookElements.push(item.values);
+//       } else if (header === 'task') {
+//         grouped.taskNames.push(item.values);
+//       } else if (header === 'chapter_number') {
+//         grouped.chapterNumbers.push(item.values);
+//       }
+//     });
+
+//     return res.json({
+//       success: true,
+//       dropdowns: grouped,
+//       team: sub_team
+//     });
+
+//   } catch (err) {
+//     console.error("getTeamWiseDropdowns error:", err);
+//     return res.status(500).json({ 
+//       success: false, 
+//       message: "Server error", 
+//       error: err.message 
+//     });
+//   }
+// };
+
 exports.getTeamWiseDropdowns = async (req, res) => {
   try {
     const { sub_team } = req.user || {};
-    
+
     if (!sub_team) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Sub-team not found in user token" 
+      return res.status(400).json({
+        success: false,
+        message: "Sub-team not found in user token",
       });
     }
 
-    // Fetch all dropdown values for this sub_team
+    // Fetch dropdown values for this sub_team
     const dropdowns = await prisma.teamWiseDropdowns.findMany({
       where: {
         team: {
           equals: sub_team,
-          mode: "insensitive"
-        }
+          mode: "insensitive",
+        },
       },
       select: {
         id: true,
         values: true,
         column_header: true,
-        team: true
-      }
+        team: true,
+      },
     });
 
     if (dropdowns.length === 0) {
@@ -412,45 +486,83 @@ exports.getTeamWiseDropdowns = async (req, res) => {
         dropdowns: {
           bookElements: [],
           taskNames: [],
-          chapterNumbers: []
-        }
+          chapterNumbers: [],
+        },
       });
     }
 
-    // Group by column_header
-    const grouped = {
-      bookElements: [],
-      taskNames: [],
-      chapterNumbers: []
+    // Helper: parse possible value formats
+    const parseValues = (val) => {
+      if (!val && val !== 0) return [];
+      if (Array.isArray(val)) return val.map((v) => String(v).trim()).filter(Boolean);
+      if (typeof val === "string") {
+        return val
+          .split(/[,;\r\n]+/)
+          .map((v) => v.trim())
+          .filter(Boolean);
+      }
+      return [String(val).trim()].filter(Boolean);
     };
 
-    dropdowns.forEach(item => {
-      const header = item.column_header.toLowerCase();
-      
-      if (header === 'book_element') {
-        grouped.bookElements.push(item.values);
-      } else if (header === 'task') {
-        grouped.taskNames.push(item.values);
-      } else if (header === 'chapter_number') {
-        grouped.chapterNumbers.push(item.values);
+    // Initialize sets to avoid duplicates
+    const sets = {
+      bookElements: new Set(),
+      taskNames: new Set(),
+      chapterNumbers: new Set(),
+    };
+
+    // Group into sets
+    dropdowns.forEach((item) => {
+      const header = (item.column_header || "").toLowerCase();
+      const vals = parseValues(item.values);
+
+      if (["book_element", "bookelements", "book element"].includes(header)) {
+        vals.forEach((v) => sets.bookElements.add(v));
+      } else if (["task", "task_name", "taskname"].includes(header)) {
+        vals.forEach((v) => sets.taskNames.add(v));
+      } else if (["chapter_number", "chapternumber", "chapter number"].includes(header)) {
+        vals.forEach((v) => sets.chapterNumbers.add(v));
       }
     });
+
+    // Sorting: Alphabetic first (A–Z), then numeric ascending
+    const isNumeric = (s) => /^-?\d+(\.\d+)?$/.test(s);
+
+    const comparator = (a, b) => {
+      const aNum = isNumeric(a);
+      const bNum = isNumeric(b);
+
+      // Alphabetic first
+      if (!aNum && bNum) return -1;
+      if (aNum && !bNum) return 1;
+
+      // Both alphabetic: case-insensitive sort
+      if (!aNum && !bNum)
+        return a.localeCompare(b, undefined, { sensitivity: "base" });
+
+      // Both numeric: numeric ascending
+      return parseFloat(a) - parseFloat(b);
+    };
+
+    // Convert to sorted arrays
+    const grouped = {
+      bookElements: Array.from(sets.bookElements).sort(comparator),
+      taskNames: Array.from(sets.taskNames).sort(comparator),
+      chapterNumbers: Array.from(sets.chapterNumbers).sort(comparator),
+    };
 
     return res.json({
       success: true,
       dropdowns: grouped,
-      team: sub_team
+      team: sub_team,
     });
-
   } catch (err) {
     console.error("getTeamWiseDropdowns error:", err);
-    return res.status(500).json({ 
-      success: false, 
-      message: "Server error", 
-      error: err.message 
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
     });
   }
 };
-
-
 
