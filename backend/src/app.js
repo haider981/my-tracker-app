@@ -143,6 +143,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/projects", projectRoutes);
 app.use('/api/spoc', spocRoutes);
+app.use('/api/spoc/abbreviations', abbreviationsRoutes);
 app.use("/api/worklogs", worklogRoutes);
 app.use("/api/spoc/projects",spocAddProjectRoutes);
 app.use("/api/shifts", markShiftRoutes);
