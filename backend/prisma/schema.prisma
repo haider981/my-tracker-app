@@ -59,6 +59,8 @@ model MasterDatabase {
   admin_action_by    String?   // admin's name/email
   admin_action_date  DateTime?
 
+  is_entry_request   Boolean   @default(false)
+
   @@map("MasterDatabase")
   
 }
@@ -90,12 +92,27 @@ model TodaysWorklog {
   unit_type       String?   
   status          String?
   due_on          DateTime? 
-  details         String?  
+  details         String? 
+  audit_status    String?
   name            String
   team            String
   created_at      DateTime  @default(now())
 
-  @@index([name, date])
+  is_entry_request       Boolean?  @default(false)
+  request_status         String?
+  late_reason            String?   
+  reviewed_at            DateTime?
+  reviewed_by            String?
+
+  added_by_admin         Boolean?  @default(false)
+  admin_action_by        String?
+  admin_action_date      DateTime?
+
+  @@index([name, date])                                    
+  @@index([name, is_entry_request, request_status])      
+  @@index([name, date, is_entry_request])                
+  @@index([team, date]) 
+
   @@map("TodaysWorklog")
 }
 
