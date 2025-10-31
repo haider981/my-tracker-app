@@ -194,7 +194,7 @@ const handleLeaveAutomation = async (worklog, adminName) => {
 
             console.log(`Case 1: Only leave present (${leaveHours} hours)`);
 
-            if (workMode === 'In Office') {
+            if (workMode === 'In Office' || workMode === 'WFH' || workMode === 'On Duty') {
                 // Remove the full day leave
                 await prisma.masterDatabase.delete({
                     where: { id: leaveEntry.id }
@@ -311,9 +311,9 @@ const handleLeaveAutomation = async (worklog, adminName) => {
                         message: 'Half day leave already exists'
                     };
                 }
-            } else if (workMode === 'In Office') {
+            } else if (workMode === 'In Office' || workMode === 'WFH' || workMode === 'On Duty') {
                 // No additional leave needed for full day work
-                console.log(`Work mode is In Office, no leave adjustment needed for ${employeeName}`);
+                console.log(`No leave adjustment needed for ${employeeName}`);
                 return {
                     action: 'no_action_needed',
                     message: 'No leave adjustment needed for In Office work mode'
