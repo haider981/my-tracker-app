@@ -53,6 +53,8 @@ model MasterDatabase {
   audit_status     String?
   name             String
   team             String
+  created_at         DateTime
+  submitted_at       DateTime  @default(now())
 
   added_by_admin     Boolean   @default(false)
   edited_by_admin    Boolean   @default(false) 
