@@ -30,6 +30,17 @@ exports.submitWorklogs = async (req, res) => {
 
     const dateOnly = getUTCDateOnly();
 
+    const todaysEntries = await prisma.todaysWorklog.findMany({
+      where: {
+        name: { equals: name, mode: "insensitive" },
+        date: dateOnly,
+      },
+      orderBy: { id: "asc" },
+      select: {
+        created_at: true,
+      }
+    });
+
     let finalEntries = entries;
     if (!Array.isArray(entries) || entries.length === 0) {
       finalEntries = [{
@@ -65,7 +76,7 @@ exports.submitWorklogs = async (req, res) => {
         });
       }
     }
-
+    
     const data = finalEntries.map((e) => ({
       date: dateOnly,
       work_mode: e.workMode,
@@ -82,6 +93,8 @@ exports.submitWorklogs = async (req, res) => {
       audit_status: "Pending",
       name,
       team: team || "",
+      created_at: todaysEntries[index]?.created_at || new Date(),
+      submitted_at: new Date(),
     }));
 
     try {
