@@ -117,7 +117,9 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
             details: "Auto-assigned leave - no worklog submitted",
             audit_status: "Pending",
             name: user.name,
-            team: user.team || ""
+            team: user.team || "",
+            created_at: new Date(),
+            submitted_at: new Date()
           };
 
           await prisma.masterDatabase.create({ data: leaveEntry });
@@ -152,7 +154,9 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
             details: entry.details || "",
             audit_status: "Pending",
             name: user.name,
-            team: user.team || ""
+            team: user.team || "",
+            created_at: entry.created_at || new Date(), 
+            submitted_at: new Date()
           };
 
           entriesToSubmit.push(masterEntry);
@@ -181,7 +185,9 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
             details: "Auto-assigned partial leave for Half Day",
             audit_status: "Pending",
             name: user.name,
-            team: user.team || ""
+            team: user.team || "",
+            created_at: new Date(),     
+            submitted_at: new Date()     
           };
           entriesToSubmit.push(additionalLeaveEntry);
         }
