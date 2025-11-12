@@ -12,4 +12,8 @@ router.get('/pending', authenticateToken, addEntryRequestSpocController.getPendi
 // GET /api/entry-requests/past - Get past (approved/rejected) entry requests
 router.get('/past', authenticateToken, addEntryRequestSpocController.getPastRequests);
 
+router.get("/unit-type-lookup", authenticateToken, addEntryRequestSpocController.getUnitTypeForCombination);
+
+router.get('/monthly-stats', authenticateToken, addEntryRequestSpocController.getMonthlyRequestStats);
+
 module.exports = router;
