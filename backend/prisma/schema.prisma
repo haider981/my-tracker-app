@@ -136,3 +136,14 @@ model TeamWiseDropdowns {
 
   @@map("TeamWiseDropdowns")
 }
+
+model UnitType {
+  id           Int      @id @default(autoincrement())
+  book_element String
+  task_name         String
+  unit_type    String?
+  created_at   DateTime @default(now())
+  created_by   String
+
+  @@map("UnitType")
+}
