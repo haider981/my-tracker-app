@@ -21,5 +21,6 @@ router.put('/worklogs/update-status', authenticateToken, SpocController.updateWo
 router.put('/worklogs/bulk-update-status', authenticateToken, SpocController.bulkUpdateWorklogStatus);
 router.get('/worklogs/summary', authenticateToken, SpocController.getWorklogSummary);
 router.get('/employees', authenticateToken, SpocController.getEmployeesUnderSpoc);
+router.get('/unit-type-lookup', authenticateToken, SpocController.getUnitTypeForCombination);
 
 module.exports = router;
