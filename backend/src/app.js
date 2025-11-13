@@ -131,6 +131,7 @@ const addEntryRequestRoutes = require('./routes/addEntryRequestRoutes');
 const addEntryRequestSpocRoutes = require('./routes/addEntryRequestSpocRoutes');
 const spocApproveMissingRequestRoutes = require('./routes/spocApproveMissingRequestRoutes');
 const adminPushMissingRequestRoutes = require('./routes/adminPushMissingRequestRoutes');
+const adminAddUnitTypeRoutes = require('./routes/adminAddUnitTypeRoutes');
 
 const { initializeScheduledJobs, stopAllScheduledJobs } = require('./services/schedulerService');
 const { createCronEndpoint } = require('./services/externalCroneService');
@@ -166,6 +167,8 @@ app.use('/api/entry-requests', addEntryRequestRoutes);
 app.use('/api/spoc/entry-requests', addEntryRequestSpocRoutes);
 app.use('/api/spoc/request', spocApproveMissingRequestRoutes);
 app.use('/api/admin/request', adminPushMissingRequestRoutes);
+app.use('/api/admin/request', adminPushMissingRequestRoutes);
+app.use('/api/admin/unit', adminAddUnitTypeRoutes);
 
 // Create external cron endpoint (NEW)
 createCronEndpoint(app);
