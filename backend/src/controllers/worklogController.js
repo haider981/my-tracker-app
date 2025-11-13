@@ -571,6 +571,130 @@ exports.getUnitTypeForCombination = async (req, res) => {
 
 
 
+// exports.submitWorklogs = async (req, res) => {
+//   try {
+//     const { entries } = req.body || {};
+//     const { name, team } = req.user || {};
+//     if (!name) {
+//       return res.status(401).json({ success: false, message: "Missing user in token" });
+//     }
+
+//     const dateOnly = getUTCDateOnly();
+
+//     // FIRST: Fetch all created_at from TodaysWorklog
+//     const todaysEntries = await prisma.todaysWorklog.findMany({
+//       where: {
+//         name: { equals: name, mode: "insensitive" },
+//         date: dateOnly,
+//       },
+//       orderBy: { id: "asc" },
+//       select: {
+//         created_at: true,
+//       }
+//     });
+
+//     let finalEntries = entries;
+//     if (!Array.isArray(entries) || entries.length === 0) {
+//       finalEntries = [{
+//         date: dateOnly,
+//         workMode: "Leave",
+//         projectId: "",
+//         task: "",
+//         bookElement: "",
+//         chapterNo: "",
+//         hoursSpent: 7.5,
+//         noOfUnits: 0,
+//         unitsType: "general",
+//         status: "",
+//         dueOn: null,
+//         remarks: "",
+//       }];
+//     } else {
+//       const hasHalfDay = finalEntries.some(e => e.workMode === "Half Day");
+//       if (hasHalfDay) {
+//         finalEntries.push({
+//           date: dateOnly,
+//           workMode: "Leave",
+//           projectId: "",
+//           task: "",
+//           bookElement: "",
+//           chapterNo: "",
+//           hoursSpent: 3.75,
+//           noOfUnits: 0,
+//           unitsType: "general",
+//           status: "",
+//           dueOn: null,
+//           remarks: "",
+//         });
+//       }
+//     }
+
+//     // Map with index to get corresponding created_at
+//     const data = finalEntries.map((e, index) => ({
+//       date: dateOnly,
+//       work_mode: e.workMode,
+//       project_name: e.projectId,
+//       task_name: e.task,
+//       book_element: e.bookElement,
+//       chapter_number: e.chapterNo || "",
+//       hours_spent: Number(e.hoursSpent) || 0,
+//       number_of_units: Number(e.noOfUnits) || 0,
+//       unit_type: e.unitsType,
+//       status: e.status,
+//       due_on: e.dueOn ? new Date(e.dueOn) : dateOnly,
+//       details: e.remarks || "",
+//       audit_status: "Pending",
+//       name,
+//       team: team || "",
+//       created_at: todaysEntries[index]?.created_at || new Date(), // <-- YAHAN paste kiya
+//       submitted_at: new Date(),
+//     }));
+
+//     try {
+//       const result = await prisma.masterDatabase.createMany({
+//         data,
+//         skipDuplicates: true,
+//       });
+
+//       await prisma.todaysWorklog.deleteMany({
+//         where: {
+//           name: { equals: name, mode: "insensitive" },
+//           date: dateOnly,
+//         }
+//       });
+
+//       return res.json({ success: true, inserted: result.count });
+//     } catch (createManyError) {
+//       console.log("createMany failed, falling back to individual creates:", createManyError.message);
+
+//       const results = [];
+//       for (const item of data) {
+//         try {
+//           const created = await prisma.masterDatabase.create({ data: item });
+//           results.push(created);
+//         } catch (individualError) {
+//           console.error("Individual create failed for item:", item, "Error:", individualError.message);
+//         }
+//       }
+
+//       if (results.length > 0) {
+//         await prisma.todaysWorklog.deleteMany({
+//           where: {
+//             name: { equals: name, mode: "insensitive" },
+//             date: dateOnly,
+//           }
+//         });
+//       }
+
+//       return res.json({ success: true, inserted: results.length, data: results });
+//     }
+//   } catch (err) {
+//     console.error("submitWorklogs error:", err);
+//     return res.status(500).json({ success: false, message: "Server error", error: err.message });
+//   }
+// };
+
+
 exports.submitWorklogs = async (req, res) => {
   try {
     const { entries } = req.body || {};
@@ -646,48 +770,45 @@ exports.submitWorklogs = async (req, res) => {
       audit_status: "Pending",
       name,
       team: team || "",
-      created_at: todaysEntries[index]?.created_at || new Date(), // <-- YAHAN paste kiya
+      created_at: todaysEntries[index]?.created_at || new Date(),
       submitted_at: new Date(),
     }));
 
+    let insertedCount = 0;
+    
     try {
       const result = await prisma.masterDatabase.createMany({
         data,
         skipDuplicates: true,
       });
+      insertedCount = result.count;
+    } catch (createManyError) {
+      console.log("createMany failed, falling back to individual creates:", createManyError.message);
 
+      // Fallback to individual creates
+      for (const item of data) {
+        try {
+          await prisma.masterDatabase.create({ data: item });
+          insertedCount++;
+        } catch (individualError) {
+          console.error("Individual create failed for item:", item, "Error:", individualError.message);
+        }
+      }
+    }
+
+    // CRITICAL FIX: Always delete from TodaysWorklog after successful insertions
+    // This should happen regardless of whether createMany or individual creates were used
+    if (insertedCount > 0) {
       await prisma.todaysWorklog.deleteMany({
         where: {
           name: { equals: name, mode: "insensitive" },
           date: dateOnly,
         }
       });
-
-      return res.json({ success: true, inserted: result.count });
-    } catch (createManyError) {
-      console.log("createMany failed, falling back to individual creates:", createManyError.message);
-
-      const results = [];
-      for (const item of data) {
-        try {
-          const created = await prisma.masterDatabase.create({ data: item });
-          results.push(created);
-        } catch (individualError) {
-          console.error("Individual create failed for item:", item, "Error:", individualError.message);
-        }
-      }
-
-      if (results.length > 0) {
-        await prisma.todaysWorklog.deleteMany({
-          where: {
-            name: { equals: name, mode: "insensitive" },
-            date: dateOnly,
-          }
-        });
-      }
-
-      return res.json({ success: true, inserted: results.length, data: results });
     }
+
+    return res.json({ success: true, inserted: insertedCount });
+    
   } catch (err) {
     console.error("submitWorklogs error:", err);
     return res.status(500).json({ success: false, message: "Server error", error: err.message });
