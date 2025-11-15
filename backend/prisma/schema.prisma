@@ -67,13 +67,16 @@ model MasterDatabase {
   
 }
 model MarkShift{
-  date DateTime   @id
+  id         Int       @id @default(autoincrement())
+  date       DateTime   
   name       String     // employee name
   email      String     // employee email
   spoc_name   String
   spoc_email  String
   shift_date  DateTime?
   shift_type  ShiftType?
+  team        String
+  role        String
 }
 
 enum ShiftType {
