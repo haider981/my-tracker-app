@@ -1,4 +1,5 @@
 const express = require("express");
+const authenticateToken = require("../middleware/auth");
 const { markShifts, getShiftHistory, getEmployeesUnderSpoc, checkExistingShifts, deleteShiftEntry,getActiveShifts} = require("../controllers/markShiftController");
 // const { markShifts, getShiftHistory, getEmployeesUnderSpoc} = require("../controllers/markShiftController");
 
@@ -9,7 +10,8 @@ router.post("/mark", markShifts);
 router.get("/history", getShiftHistory);
 router.get("/active", getActiveShifts);
 router.get("/check-existing", checkExistingShifts);
-router.delete("/", deleteShiftEntry);
+// router.delete("/", deleteShiftEntry);
+router.delete("/:id", authenticateToken, deleteShiftEntry);
 
 
 module.exports=router;
