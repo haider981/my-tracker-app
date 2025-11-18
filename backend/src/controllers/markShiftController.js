@@ -454,7 +454,6 @@
 //   deleteShiftEntry
 // };
 
-
 // const prisma = require("../config/prisma");
 
 // // Utility: find upcoming Sunday (UTC)
@@ -849,14 +848,69 @@
 // };
 
 // // GET /api/shifts/history
+// // const getShiftHistory = async (req, res) => {
+// //   try {
+// //     const { spoc_email, type, include_active } = req.query;
+// //     const where = {};
+
+// //     if (spoc_email) where.spoc_email = spoc_email;
+// //     if (type) where.shift_type = type.toUpperCase();
+
+// //     const shifts = await prisma.markShift.findMany({
+// //       where,
+// //       orderBy: { shift_date: "desc" }
+// //     });
+
+// //     const activeShifts = [];
+// //     const historicalShifts = [];
+
+// //     shifts.forEach(shift => {
+// //       if (isShiftActive(shift.shift_date, shift.shift_type)) {
+// //         activeShifts.push({ ...shift, canDelete: true });
+// //       } else {
+// //         historicalShifts.push({ ...shift, canDelete: false });
+// //       }
+// //     });
+
+// //     if (include_active === "true") {
+// //       res.json({ active: activeShifts, historical: historicalShifts });
+// //     } else {
+// //       res.json(historicalShifts);
+// //     }
+// //   } catch (error) {
+// //     console.error("Error fetching history:", error);
+// //     res.status(500).json({ error: "Failed to fetch history" });
+// //   }
+// // };
+
 // const getShiftHistory = async (req, res) => {
 //   try {
 //     const { spoc_email, type, include_active } = req.query;
-//     const where = {};
 
-//     if (spoc_email) where.spoc_email = spoc_email;
+//     if (!spoc_email) {
+//       return res.status(400).json({ error: "spoc_email is required" });
+//     }
+
+//     // STEP 1: Get employees under this SPOC
+//     const employees = await prisma.users.findMany({
+//       where: { spoc_email },
+//       select: { name: true }
+//     });
+
+//     const employeeNames = employees.map(e => e.name);
+
+//     if (employeeNames.length === 0) {
+//       return res.json([]); // no employees → no shift history
+//     }
+
+//     // STEP 2: Build WHERE for markShift
+//     const where = {
+//       name: { in: employeeNames }
+//     };
+
 //     if (type) where.shift_type = type.toUpperCase();
 
+//     // STEP 3: Fetch all shifts
 //     const shifts = await prisma.markShift.findMany({
 //       where,
 //       orderBy: { shift_date: "desc" }
@@ -865,6 +919,7 @@
 //     const activeShifts = [];
 //     const historicalShifts = [];
 
+//     // STEP 4: Separate active & historical
 //     shifts.forEach(shift => {
 //       if (isShiftActive(shift.shift_date, shift.shift_type)) {
 //         activeShifts.push({ ...shift, canDelete: true });
@@ -873,41 +928,92 @@
 //       }
 //     });
 
+//     // STEP 5: Return based on include_active flag
 //     if (include_active === "true") {
 //       res.json({ active: activeShifts, historical: historicalShifts });
 //     } else {
 //       res.json(historicalShifts);
 //     }
+
 //   } catch (error) {
 //     console.error("Error fetching history:", error);
 //     res.status(500).json({ error: "Failed to fetch history" });
 //   }
 // };
 
+
 // // GET /api/shifts/active
+// // const getActiveShifts = async (req, res) => {
+// //   try {
+// //     const { spoc_email, type } = req.query;
+// //     const where = {};
+
+// //     if (spoc_email) where.spoc_email = spoc_email;
+// //     if (type) where.shift_type = type.toUpperCase();
+
+// //     const shifts = await prisma.markShift.findMany({
+// //       where,
+// //       orderBy: { shift_date: "asc" }
+// //     });
+
+// //     const activeShifts = shifts
+// //       .filter(shift => isShiftActive(shift.shift_date, shift.shift_type))
+// //       .map(shift => ({ ...shift, canDelete: true }));
+
+// //     res.json(activeShifts);
+// //   } catch (error) {
+// //     console.error("Error fetching active shifts:", error);
+// //     res.status(500).json({ error: "Failed to fetch active shifts" });
+// //   }
+// // };
+
 // const getActiveShifts = async (req, res) => {
 //   try {
 //     const { spoc_email, type } = req.query;
-//     const where = {};
 
-//     if (spoc_email) where.spoc_email = spoc_email;
+//     if (!spoc_email) {
+//       return res.status(400).json({ error: "spoc_email is required" });
+//     }
+
+//     // STEP 1: Get all employees under this SPOC
+//     const employees = await prisma.users.findMany({
+//       where: { spoc_email },
+//       select: { name: true }
+//     });
+
+//     const employeeNames = employees.map(e => e.name);
+
+//     if (employeeNames.length === 0) {
+//       return res.json([]); // No employees found → no shifts
+//     }
+
+//     // STEP 2: Build WHERE condition for markShift
+//     const where = {
+//       name: { in: employeeNames }
+//     };
+
 //     if (type) where.shift_type = type.toUpperCase();
 
+//     // STEP 3: Fetch shifts of those employees
 //     const shifts = await prisma.markShift.findMany({
 //       where,
 //       orderBy: { shift_date: "asc" }
 //     });
 
+//     // STEP 4: Filter active shifts
 //     const activeShifts = shifts
 //       .filter(shift => isShiftActive(shift.shift_date, shift.shift_type))
 //       .map(shift => ({ ...shift, canDelete: true }));
 
 //     res.json(activeShifts);
+
 //   } catch (error) {
 //     console.error("Error fetching active shifts:", error);
 //     res.status(500).json({ error: "Failed to fetch active shifts" });
 //   }
 // };
+
+
 
 // module.exports = {
 //   markShifts,
@@ -917,7 +1023,6 @@
 //   checkExistingShifts,
 //   deleteShiftEntry
 // };
-
 
 const prisma = require("../config/prisma");
 
@@ -1092,98 +1197,42 @@ const checkExistingShifts = async (req, res) => {
 // Delete a shift entry (only active UTC)
 const deleteShiftEntry = async (req, res) => {
   try {
-    // Try numeric id first (backwards compatible)
-    const idParam = req.params && req.params.id;
-    if (idParam) {
-      const id = parseInt(idParam);
-      if (Number.isNaN(id)) {
-        return res.status(400).json({ error: "Invalid shift id" });
-      }
+    const id = parseInt(req.params.id);
 
-      const existingShift = await prisma.markShift.findUnique({ where: { id } });
-
-      if (!existingShift) {
-        return res.status(404).json({ error: "Shift entry not found" });
-      }
-
-      if (!isShiftActive(existingShift.shift_date, existingShift.shift_type)) {
-        return res.status(400).json({
-          error:
-            "Cannot delete historical shift entries. This shift has already been completed."
-        });
-      }
-
-      await prisma.markShift.delete({ where: { id } });
-      return res.json({ message: "Shift entry deleted successfully", deletedCount: 1 });
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ error: "Invalid shift id" });
     }
 
-    // --- Composite-key delete path (no id available) ---
-    const { email, shift_date: shiftDateParam, shift_type: shiftTypeParam, spoc_email } = req.query;
+    const existingShift = await prisma.markShift.findUnique({
+      where: { id }
+    });
 
-    if (!email || !shiftDateParam || !shiftTypeParam || !spoc_email) {
+    if (!existingShift) {
+      return res.status(404).json({ error: "Shift entry not found" });
+    }
+
+    // Check if shift is active
+    if (!isShiftActive(existingShift.shift_date, existingShift.shift_type)) {
       return res.status(400).json({
-        error: "Missing required params. Provide email, shift_date, shift_type, spoc_email as query parameters"
+        error: "Cannot delete historical shift entries. This shift has already been completed."
       });
     }
 
-    // Parse and normalize shift_date to UTC midnight
-    const parsedShiftDate = new Date(shiftDateParam);
-    if (isNaN(parsedShiftDate.getTime())) {
-      return res.status(400).json({ error: "Invalid shift_date. Use ISO date string." });
-    }
-    parsedShiftDate.setUTCHours(0, 0, 0, 0);
-    const nextDay = new Date(parsedShiftDate.getTime() + 24 * 60 * 60 * 1000);
-
-    const normalizedShiftType = String(shiftTypeParam).toUpperCase();
-
-    // Find matching rows for that day
-    const matches = await prisma.markShift.findMany({
-      where: {
-        email,
-        spoc_email,
-        shift_type: normalizedShiftType,
-        shift_date: { gte: parsedShiftDate, lt: nextDay }
-      }
+    await prisma.markShift.delete({
+      where: { id }
     });
 
-    if (!matches || matches.length === 0) {
-      return res.status(404).json({ error: "No matching shift entry found" });
-    }
-
-    // Check if any match is historical
-    const nonActive = matches.filter(m => !isShiftActive(m.shift_date, m.shift_type));
-    if (nonActive.length > 0) {
-      return res.status(400).json({
-        error: "Cannot delete historical shift entries. One or more matching shifts are already completed.",
-        historical: nonActive.map(m => ({ 
-          name: m.name, 
-          email: m.email, 
-          shift_date: m.shift_date, 
-          shift_type: m.shift_type 
-        }))
-      });
-    }
-
-    // All matches are active — delete them
-    const deleted = await prisma.markShift.deleteMany({
-      where: {
-        email,
-        spoc_email,
-        shift_type: normalizedShiftType,
-        shift_date: { gte: parsedShiftDate, lt: nextDay }
-      }
-    });
-
-    return res.json({
+    res.json({
       message: "Shift entry deleted successfully",
-      deletedCount: deleted.count
+      deletedCount: 1
     });
 
   } catch (error) {
     console.error("Error deleting shift entry:", error);
-    return res.status(500).json({ error: "Failed to delete shift entry" });
+    res.status(500).json({ error: "Failed to delete shift entry" });
   }
 };
+
 
 // POST /api/shifts/mark
 const markShifts = async (req, res) => {
@@ -1488,3 +1537,4 @@ module.exports = {
   checkExistingShifts,
   deleteShiftEntry
 };
+
