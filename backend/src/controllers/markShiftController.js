@@ -44,41 +44,64 @@
 //   return getNextSundayUTC(today);
 // }
 
-// // GET employees under a SPOC
+// // GET employees under a SPOC - FIXED VERSION
 // const getEmployeesUnderSpoc = async (req, res) => {
 //   try {
 //     const { spoc_email } = req.query;
+    
 //     if (!spoc_email) {
 //       return res.status(400).json({ error: "SPOC email is required" });
 //     }
 
-//     let employeesUnderSpoc;
+//     console.log(`Fetching employees for SPOC: ${spoc_email}`);
 
-//     try {
-//       employeesUnderSpoc = await prisma.users.findMany({
-//         where: { spoc_email, role: "EMPLOYEE" },
-//         select: { id: true, name: true, email: true }
-//       });
-//     } catch {
-//       try {
-//         employeesUnderSpoc = await prisma.users.findMany({
-//           where: { spoc_email, role: "employee" },
-//           select: { id: true, name: true, email: true }
-//         });
-//       } catch {
-//         employeesUnderSpoc = await prisma.$queryRaw`
-//           SELECT id, name, email 
-//           FROM "Users" 
-//           WHERE spoc_email = ${spoc_email} 
-//           AND role::text = 'Employee'
-//         `;
+//     // Use case-insensitive query with OR condition to match any role variation
+//     const employeesUnderSpoc = await prisma.$queryRaw`
+//       SELECT id, name, email, role, spoc_email
+//       FROM "Users" 
+//       WHERE LOWER(spoc_email) = LOWER(${spoc_email})
+//       AND (
+//         LOWER(role::text) = 'employee' 
+//         OR role::text = 'EMPLOYEE'
+//         OR role::text = 'Employee'
+//       )
+//     `;
+
+//     console.log(`Found ${employeesUnderSpoc.length} employees under ${spoc_email}`);
+    
+//     // Log the results for debugging
+//     if (employeesUnderSpoc.length > 0) {
+//       console.log('Employee details:', employeesUnderSpoc.map(e => ({
+//         name: e.name,
+//         email: e.email,
+//         role: e.role
+//       })));
+//     } else {
+//       // Additional debugging: check if there are any users with this spoc_email at all
+//       const allUsersWithSpoc = await prisma.$queryRaw`
+//         SELECT id, name, email, role, spoc_email
+//         FROM "Users" 
+//         WHERE LOWER(spoc_email) = LOWER(${spoc_email})
+//       `;
+      
+//       console.log(`Total users with spoc_email ${spoc_email}:`, allUsersWithSpoc.length);
+//       if (allUsersWithSpoc.length > 0) {
+//         console.log('Users found (with roles):', allUsersWithSpoc.map(u => ({
+//           name: u.name,
+//           email: u.email,
+//           role: u.role,
+//           role_type: typeof u.role
+//         })));
 //       }
 //     }
 
 //     res.json(employeesUnderSpoc);
 //   } catch (error) {
 //     console.error("Error fetching employees under SPOC:", error);
-//     res.status(500).json({ error: "Failed to fetch employees" });
+//     res.status(500).json({ 
+//       error: "Failed to fetch employees",
+//       details: error.message 
+//     });
 //   }
 // };
 
@@ -171,7 +194,6 @@
 //     }
 
 //     // --- Composite-key delete path (no id available) ---
-//     // Accept query params only for DELETE requests
 //     const { email, shift_date: shiftDateParam, shift_type: shiftTypeParam, spoc_email } = req.query;
 
 //     if (!email || !shiftDateParam || !shiftTypeParam || !spoc_email) {
@@ -180,7 +202,7 @@
 //       });
 //     }
 
-//     // Parse and normalize shift_date to UTC midnight and use day-range match to be robust
+//     // Parse and normalize shift_date to UTC midnight
 //     const parsedShiftDate = new Date(shiftDateParam);
 //     if (isNaN(parsedShiftDate.getTime())) {
 //       return res.status(400).json({ error: "Invalid shift_date. Use ISO date string." });
@@ -190,7 +212,7 @@
 
 //     const normalizedShiftType = String(shiftTypeParam).toUpperCase();
 
-//     // Find matching rows for that day (range) to avoid timestamp precision issues
+//     // Find matching rows for that day
 //     const matches = await prisma.markShift.findMany({
 //       where: {
 //         email,
@@ -204,16 +226,21 @@
 //       return res.status(404).json({ error: "No matching shift entry found" });
 //     }
 
-//     // If *any* match is historical, refuse deletion (consistent with previous behavior)
+//     // Check if any match is historical
 //     const nonActive = matches.filter(m => !isShiftActive(m.shift_date, m.shift_type));
 //     if (nonActive.length > 0) {
 //       return res.status(400).json({
 //         error: "Cannot delete historical shift entries. One or more matching shifts are already completed.",
-//         historical: nonActive.map(m => ({ name: m.name, email: m.email, shift_date: m.shift_date, shift_type: m.shift_type }))
+//         historical: nonActive.map(m => ({ 
+//           name: m.name, 
+//           email: m.email, 
+//           shift_date: m.shift_date, 
+//           shift_type: m.shift_type 
+//         }))
 //       });
 //     }
 
-//     // All matches are active — delete them (deleteMany)
+//     // All matches are active — delete them
 //     const deleted = await prisma.markShift.deleteMany({
 //       where: {
 //         email,
@@ -224,7 +251,7 @@
 //     });
 
 //     return res.json({
-//       message: "Shift entry/deletions successful",
+//       message: "Shift entry deleted successfully",
 //       deletedCount: deleted.count
 //     });
 
@@ -233,6 +260,7 @@
 //     return res.status(500).json({ error: "Failed to delete shift entry" });
 //   }
 // };
+
 // // POST /api/shifts/mark
 // const markShifts = async (req, res) => {
 //   try {
@@ -485,8 +513,9 @@ const getEmployeesUnderSpoc = async (req, res) => {
     console.log(`Fetching employees for SPOC: ${spoc_email}`);
 
     // Use case-insensitive query with OR condition to match any role variation
+    // Now also fetch team field
     const employeesUnderSpoc = await prisma.$queryRaw`
-      SELECT id, name, email, role, spoc_email
+      SELECT id, name, email, role, spoc_email, team
       FROM "Users" 
       WHERE LOWER(spoc_email) = LOWER(${spoc_email})
       AND (
@@ -503,12 +532,13 @@ const getEmployeesUnderSpoc = async (req, res) => {
       console.log('Employee details:', employeesUnderSpoc.map(e => ({
         name: e.name,
         email: e.email,
-        role: e.role
+        role: e.role,
+        team: e.team
       })));
     } else {
       // Additional debugging: check if there are any users with this spoc_email at all
       const allUsersWithSpoc = await prisma.$queryRaw`
-        SELECT id, name, email, role, spoc_email
+        SELECT id, name, email, role, spoc_email, team
         FROM "Users" 
         WHERE LOWER(spoc_email) = LOWER(${spoc_email})
       `;
@@ -519,6 +549,7 @@ const getEmployeesUnderSpoc = async (req, res) => {
           name: u.name,
           email: u.email,
           role: u.role,
+          team: u.team,
           role_type: typeof u.role
         })));
       }
@@ -742,7 +773,9 @@ const markShifts = async (req, res) => {
             spoc_name,
             spoc_email,
             shift_date: todayStart,
-            shift_type: "NIGHT"
+            shift_type: "NIGHT",
+            team: emp.team || "Unknown", // Use employee's team or default
+            role: emp.role || "Employee"  // Use employee's role or default
           });
         }
       }
@@ -780,7 +813,9 @@ const markShifts = async (req, res) => {
             spoc_name,
             spoc_email,
             shift_date: sundayStart,
-            shift_type: "SUNDAY"
+            shift_type: "SUNDAY",
+            team: emp.team || "Unknown", // Use employee's team or default
+            role: emp.role || "Employee"  // Use employee's role or default
           });
         }
       }
@@ -882,4 +917,3 @@ module.exports = {
   checkExistingShifts,
   deleteShiftEntry
 };
-
