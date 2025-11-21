@@ -50,7 +50,7 @@ app.use('/api/admin', adminEditWorklogRoutes);
 app.use('/api/admin', adminHandleEmployeeRoutes);
 app.use('/api/admin', scheduledRoutes);
 app.use('/api/admin', adminAddProjectRoutes);
-app.use('/api/admin/projects', adminProjectRequestRoutes);
+app.use('/api/admin-projects', adminProjectRequestRoutes);
 app.use('/api/admin/abbreviations', abbreviationsRoutes);
 app.use('/api/abbreviations', adminAddAbbreviationRoutes);
 app.use('/api/teamwise-dropdowns', teamWiseDropdownRoutes);
