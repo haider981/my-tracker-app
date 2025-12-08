@@ -18,4 +18,6 @@ router.put('/reject', authMiddleware, adminPushMissingRequestController.rejectEn
 // PUT /api/admin/entry-requests/bulk-approve - Bulk approve entry requests
 router.put('/bulk-approve', authMiddleware, adminPushMissingRequestController.bulkApproveEntryRequests);
 
+router.get('/count', authMiddleware, adminPushMissingRequestController.getPendingEntryRequestsCount);
+
 module.exports = router;
