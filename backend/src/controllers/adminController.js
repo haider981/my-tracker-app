@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const { queueNotification } = require("../utils/queueNotification");
 
 const ALLOWED_TARGET_STATUSES = Object.freeze([
   "Approved",
@@ -202,8 +203,9 @@ class AdminController {
   static async updateWorklogStatus(req, res) {
     const t0 = Date.now();
     try {
-      const { worklogId, auditStatus} = req.body || {};
+      const { worklogId, auditStatus } = req.body || {};
       const adminEmail = req.user?.email || null;
+      const adminName = req.user?.name || null;
 
       if (!worklogId || !auditStatus) {
         return sendJsonError(res, 400, "worklogId and auditStatus are required.");
@@ -237,15 +239,13 @@ class AdminController {
         return sendJsonError(res, 404, "Worklog not found.");
       }
 
-      // Admin can override any status at any time - no phase restrictions
       const current = (worklog.audit_status || "Pending").trim();
 
-      // Build update data
-      const updateData = { 
+      // Update worklog
+      const updateData = {
         audit_status: auditStatus,
       };
 
-      // Update worklog
       let updated = null;
       try {
         updated = await prisma.masterDatabase.update({
@@ -257,6 +257,57 @@ class AdminController {
         return sendJsonError(res, 500, "Database error while updating worklog.", {
           details: err?.message || String(err),
         });
+      }
+
+      // ✅ QUEUE NOTIFICATION FOR EMPLOYEE/SPOC - FIXED
+      try {
+        const user = await prisma.users.findFirst({
+          where: { name: worklog.name },
+          select: { id: true, email: true, name: true, role: true }
+        });
+
+        if (user) {
+          console.log(`📋 Found user ${user.name} (ID: ${user.id}) for notification`);
+          
+          // Check if user is SPOC or Employee
+          const isSpoc = user.role?.toLowerCase() === 'spoc';
+
+          let notificationType;
+          if (auditStatus === "Approved" || auditStatus === "Re-Approved") {
+            notificationType = isSpoc ? "SPOC_ENTRY_APPROVED_BY_ADMIN" : "ENTRY_APPROVED_BY_ADMIN";
+          } else if (auditStatus === "Rejected" || auditStatus === "Re-Rejected") {
+            notificationType = isSpoc ? "SPOC_ENTRY_REJECTED_BY_ADMIN" : "ENTRY_REJECTED_BY_ADMIN";
+          }
+
+          if (notificationType) {
+            const notificationData = isSpoc ? {
+              spocId: user.id,
+              adminName: adminName || adminEmail,
+              entryDate: worklog.date,
+              entryId: worklog.id,
+              reason: auditStatus.includes("Rejected") ? "Entry rejected by Admin" : undefined,
+            } : {
+              employeeId: user.id,
+              adminName: adminName || adminEmail,
+              entryDate: worklog.date,
+              entryId: worklog.id,
+              reason: auditStatus.includes("Rejected") ? "Entry rejected by Admin" : undefined,
+            };
+
+            await queueNotification({
+              userId: user.id,
+              type: notificationType,
+              data: notificationData
+            });
+            
+            console.log(`📮 Queued notification ${notificationType} for user ${user.name} (ID: ${user.id})`);
+          }
+        } else {
+          console.log(`⚠️ No user found with name: ${worklog.name}`);
+        }
+      } catch (notifError) {
+        console.error("[admin updateWorklogStatus] Notification queue error:", notifError);
+        // Don't fail the request if notification fails
       }
 
       const t1 = Date.now();
@@ -286,13 +337,13 @@ class AdminController {
   /**
    * PUT /api/admin/worklogs/bulk-update-status
    * Bulk update multiple worklogs (admin override - no restrictions).
-   * Body: { worklogIds: number[], auditStatus: "Approved"|"Rejected"|"Re-Approved"|"Re-Rejected", adminComments?: string }
    */
   static async bulkUpdateWorklogStatus(req, res) {
     const t0 = Date.now();
     try {
-      const { worklogIds, auditStatus} = req.body || {};
+      const { worklogIds, auditStatus } = req.body || {};
       const adminEmail = req.user?.email || null;
+      const adminName = req.user?.name || null;
 
       if (!Array.isArray(worklogIds) || worklogIds.length === 0) {
         return sendJsonError(res, 400, "worklogIds (array) is required.");
@@ -309,33 +360,32 @@ class AdminController {
       const ids = worklogIds
         .map((x) => toInt(x))
         .filter((n) => Number.isFinite(n) && !Number.isNaN(n));
-        
+
       if (ids.length === 0) {
         return sendJsonError(res, 400, "No valid integer IDs provided.");
       }
 
-      // Verify worklogs exist
-      let existingCount = 0;
+      // Load worklogs to get employee names for notifications
+      let worklogsToUpdate = [];
       try {
-        existingCount = await prisma.masterDatabase.count({
-          where: { id: { in: ids } }
+        worklogsToUpdate = await prisma.masterDatabase.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, name: true, date: true, audit_status: true }
         });
       } catch (err) {
-        console.error("[admin bulkUpdateWorklogStatus] Prisma count error:", err);
-        return sendJsonError(res, 500, "Database error while verifying worklogs.", {
+        console.error("[admin bulkUpdateWorklogStatus] Prisma findMany error:", err);
+        return sendJsonError(res, 500, "Database error while loading worklogs.", {
           details: err?.message || String(err),
         });
       }
 
-      if (existingCount !== ids.length) {
+      if (worklogsToUpdate.length !== ids.length) {
         return sendJsonError(res, 404, "Some worklogs were not found.");
       }
 
-      // Build update data
-      const updateData = { 
+      const updateData = {
         audit_status: auditStatus,
       };
-
 
       // Bulk update
       let result = null;
@@ -349,6 +399,64 @@ class AdminController {
         return sendJsonError(res, 500, "Database error while bulk-updating worklogs.", {
           details: err?.message || String(err),
         });
+      }
+
+      // ✅ QUEUE NOTIFICATIONS FOR ALL AFFECTED USERS - FIXED
+      try {
+        const uniqueUserNames = [...new Set(worklogsToUpdate.map(w => w.name))];
+
+        for (const userName of uniqueUserNames) {
+          const user = await prisma.users.findFirst({
+            where: { name: userName },
+            select: { id: true, email: true, name: true, role: true }
+          });
+
+          if (user) {
+            console.log(`📋 Found user ${user.name} (ID: ${user.id}) for bulk notification`);
+            
+            const isSpoc = user.role?.toLowerCase() === 'spoc';
+            const userEntries = worklogsToUpdate.filter(w => w.name === userName);
+
+            let notificationType;
+            if (auditStatus === "Approved" || auditStatus === "Re-Approved") {
+              notificationType = isSpoc ? "SPOC_ENTRY_APPROVED_BY_ADMIN" : "ENTRY_APPROVED_BY_ADMIN";
+            } else if (auditStatus === "Rejected" || auditStatus === "Re-Rejected") {
+              notificationType = isSpoc ? "SPOC_ENTRY_REJECTED_BY_ADMIN" : "ENTRY_REJECTED_BY_ADMIN";
+            }
+
+            if (notificationType) {
+              // For bulk updates, send one notification per user mentioning multiple entries
+              const notificationData = isSpoc ? {
+                spocId: user.id,
+                adminName: adminName || adminEmail,
+                entryDate: userEntries[0].date,
+                entryId: userEntries[0].id,
+                bulkCount: userEntries.length,
+                reason: auditStatus.includes("Rejected") ? `${userEntries.length} entries rejected by Admin` : undefined,
+              } : {
+                employeeId: user.id,
+                adminName: adminName || adminEmail,
+                entryDate: userEntries[0].date,
+                entryId: userEntries[0].id,
+                bulkCount: userEntries.length,
+                reason: auditStatus.includes("Rejected") ? `${userEntries.length} entries rejected by Admin` : undefined,
+              };
+
+              await queueNotification({
+                userId: user.id,
+                type: notificationType,
+                data: notificationData
+              });
+              
+              console.log(`📮 Queued bulk notification ${notificationType} for user ${user.name} (${userEntries.length} entries)`);
+            }
+          } else {
+            console.log(`⚠️ No user found with name: ${userName}`);
+          }
+        }
+      } catch (notifError) {
+        console.error("[admin bulkUpdateWorklogStatus] Notification queue error:", notifError);
+        // Don't fail the request if notification fails
       }
 
       const t1 = Date.now();
