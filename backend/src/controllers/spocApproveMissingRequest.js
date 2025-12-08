@@ -183,13 +183,203 @@
 // };
 
 // // Update single worklog audit status
+// // const updateWorklogStatus = async (req, res) => {
+// //     try {
+// //         const spocEmail = req.user.email;
+// //         const spocName = req.user.name;
+// //         const { worklogId, auditStatus } = req.body;
+
+// //         // Validate audit status
+// //         if (!['Pending', 'Approved', 'Rejected'].includes(auditStatus)) {
+// //             return res.status(400).json({
+// //                 success: false,
+// //                 message: 'Invalid audit status'
+// //             });
+// //         }
+
+// //         // Convert worklogId to integer if it's a string
+// //         const id = parseInt(worklogId);
+
+// //         // First, get all employees under this SPOC
+// //         const employeesUnderSpoc = await prisma.users.findMany({
+// //             where: {
+// //                 spoc_email: spocEmail,
+// //                 spoc_name: spocName
+// //             },
+// //             select: {
+// //                 email: true,
+// //                 name: true
+// //             }
+// //         });
+
+// //         // Extract employee names for filtering
+// //         const employeeNames = employeesUnderSpoc.map(emp => emp.name);
+
+// //         // If no employees found under this SPOC, return error
+// //         if (employeeNames.length === 0) {
+// //             return res.status(404).json({
+// //                 success: false,
+// //                 message: 'No employees found under your supervision'
+// //             });
+// //         }
+
+// //         // First check if the worklog exists and belongs to an employee under this SPOC
+// //         const existingWorklog = await prisma.todaysWorklog.findFirst({
+// //             where: {
+// //                 id: id,
+// //                 name: { in: employeeNames } // Check if the worklog belongs to one of SPOC's employees
+// //             }
+// //         });
+
+// //         if (!existingWorklog) {
+// //             return res.status(404).json({
+// //                 success: false,
+// //                 message: 'Worklog not found or unauthorized'
+// //             });
+// //         }
+
+// //         // Update the worklog
+// //         const worklog = await prisma.todaysWorklog.update({
+// //             where: {
+// //                 id: id
+// //             },
+// //             data: {
+// //                 audit_status: auditStatus,
+// //                 reviewed_at: new Date(),
+// //                 reviewed_by: spocName
+// //             },
+// //             select: {
+// //                 id: true,
+// //                 audit_status: true,
+// //                 name: true,
+// //                 date: true
+// //             }
+// //         });
+
+// //         res.status(200).json({
+// //             success: true,
+// //             message: `Worklog ${auditStatus.toLowerCase()} successfully`,
+// //             worklog: {
+// //                 _id: worklog.id.toString(),
+// //                 auditStatus: worklog.audit_status,
+// //                 employeeName: worklog.name,
+// //                 date: worklog.date
+// //             }
+// //         });
+// //     } catch (error) {
+// //         console.error('Error updating worklog status:', error);
+// //         res.status(500).json({
+// //             success: false,
+// //             message: 'Failed to update worklog status',
+// //             error: error.message
+// //         });
+// //     }
+// // };
+
+// // // Bulk update worklog audit status
+// // const bulkUpdateWorklogStatus = async (req, res) => {
+// //     try {
+// //         const spocEmail = req.user.email;
+// //         const spocName = req.user.name;
+// //         const { worklogIds, auditStatus } = req.body;
+
+// //         // Validate
+// //         if (!Array.isArray(worklogIds) || worklogIds.length === 0) {
+// //             return res.status(400).json({
+// //                 success: false,
+// //                 message: 'worklogIds must be a non-empty array'
+// //             });
+// //         }
+
+// //         if (!['Pending', 'Approved', 'Rejected'].includes(auditStatus)) {
+// //             return res.status(400).json({
+// //                 success: false,
+// //                 message: 'Invalid audit status'
+// //             });
+// //         }
+
+// //         // Convert worklogIds to integers
+// //         const ids = worklogIds.map(id => parseInt(id));
+
+// //         // First, get all employees under this SPOC
+// //         const employeesUnderSpoc = await prisma.users.findMany({
+// //             where: {
+// //                 spoc_email: spocEmail
+// //             },
+// //             select: {
+// //                 email: true,
+// //                 name: true
+// //             }
+// //         });
+
+// //         // Extract employee names for filtering
+// //         const employeeNames = employeesUnderSpoc.map(emp => emp.name);
+
+// //         // If no employees found under this SPOC, return error
+// //         if (employeeNames.length === 0) {
+// //             return res.status(404).json({
+// //                 success: false,
+// //                 message: 'No employees found under your supervision'
+// //             });
+// //         }
+
+// //         // First check which worklogs exist and belong to employees under this SPOC
+// //         const existingWorklogs = await prisma.todaysWorklog.findMany({
+// //             where: {
+// //                 id: { in: ids },
+// //                 name: { in: employeeNames } // Check if worklogs belong to SPOC's employees
+// //             },
+// //             select: {
+// //                 id: true
+// //             }
+// //         });
+
+// //         const validWorklogIds = existingWorklogs.map(log => log.id);
+
+// //         if (validWorklogIds.length === 0) {
+// //             return res.status(404).json({
+// //                 success: false,
+// //                 message: 'No valid worklogs found or unauthorized access'
+// //             });
+// //         }
+
+// //         // Bulk update only the valid worklogs
+// //         const result = await prisma.todaysWorklog.updateMany({
+// //             where: {
+// //                 id: { in: validWorklogIds },
+// //                 name: { in: employeeNames } // Double security check
+// //             },
+// //             data: {
+// //                 audit_status: auditStatus,
+// //                 reviewed_at: new Date(),
+// //                 reviewed_by: spocName
+// //             }
+// //         });
+
+// //         res.status(200).json({
+// //             success: true,
+// //             message: `${result.count} worklogs ${auditStatus.toLowerCase()} successfully`,
+// //             modifiedCount: result.count,
+// //             totalRequested: worklogIds.length,
+// //             validWorklogsUpdated: result.count
+// //         });
+// //     } catch (error) {
+// //         console.error('Error bulk updating worklog status:', error);
+// //         res.status(500).json({
+// //             success: false,
+// //             message: 'Failed to bulk update worklog status',
+// //             error: error.message
+// //         });
+// //     }
+// // };
+
+// // Update single worklog audit status
 // const updateWorklogStatus = async (req, res) => {
 //     try {
 //         const spocEmail = req.user.email;
 //         const spocName = req.user.name;
 //         const { worklogId, auditStatus } = req.body;
 
-//         // Validate audit status
 //         if (!['Pending', 'Approved', 'Rejected'].includes(auditStatus)) {
 //             return res.status(400).json({
 //                 success: false,
@@ -197,25 +387,18 @@
 //             });
 //         }
 
-//         // Convert worklogId to integer if it's a string
 //         const id = parseInt(worklogId);
 
-//         // First, get all employees under this SPOC
 //         const employeesUnderSpoc = await prisma.users.findMany({
 //             where: {
 //                 spoc_email: spocEmail,
 //                 spoc_name: spocName
 //             },
-//             select: {
-//                 email: true,
-//                 name: true
-//             }
+//             select: { name: true }
 //         });
 
-//         // Extract employee names for filtering
 //         const employeeNames = employeesUnderSpoc.map(emp => emp.name);
 
-//         // If no employees found under this SPOC, return error
 //         if (employeeNames.length === 0) {
 //             return res.status(404).json({
 //                 success: false,
@@ -223,11 +406,10 @@
 //             });
 //         }
 
-//         // First check if the worklog exists and belongs to an employee under this SPOC
 //         const existingWorklog = await prisma.todaysWorklog.findFirst({
 //             where: {
-//                 id: id,
-//                 name: { in: employeeNames } // Check if the worklog belongs to one of SPOC's employees
+//                 id,
+//                 name: { in: employeeNames }
 //             }
 //         });
 
@@ -238,19 +420,24 @@
 //             });
 //         }
 
-//         // Update the worklog
+//         // 🟢 Automation: if rejected, set both audit_status and request_status = 'Rejected'
+//         const updateData = {
+//             audit_status: auditStatus,
+//             reviewed_at: new Date(),
+//             reviewed_by: spocName
+//         };
+
+//         if (auditStatus === 'Rejected') {
+//             updateData.request_status = 'Rejected';
+//         }
+
 //         const worklog = await prisma.todaysWorklog.update({
-//             where: {
-//                 id: id
-//             },
-//             data: {
-//                 audit_status: auditStatus,
-//                 reviewed_at: new Date(),
-//                 reviewed_by: spocName
-//             },
+//             where: { id },
+//             data: updateData,
 //             select: {
 //                 id: true,
 //                 audit_status: true,
+//                 request_status: true,
 //                 name: true,
 //                 date: true
 //             }
@@ -262,6 +449,7 @@
 //             worklog: {
 //                 _id: worklog.id.toString(),
 //                 auditStatus: worklog.audit_status,
+//                 requestStatus: worklog.request_status,
 //                 employeeName: worklog.name,
 //                 date: worklog.date
 //             }
@@ -283,7 +471,6 @@
 //         const spocName = req.user.name;
 //         const { worklogIds, auditStatus } = req.body;
 
-//         // Validate
 //         if (!Array.isArray(worklogIds) || worklogIds.length === 0) {
 //             return res.status(400).json({
 //                 success: false,
@@ -298,24 +485,15 @@
 //             });
 //         }
 
-//         // Convert worklogIds to integers
 //         const ids = worklogIds.map(id => parseInt(id));
 
-//         // First, get all employees under this SPOC
 //         const employeesUnderSpoc = await prisma.users.findMany({
-//             where: {
-//                 spoc_email: spocEmail
-//             },
-//             select: {
-//                 email: true,
-//                 name: true
-//             }
+//             where: { spoc_email: spocEmail },
+//             select: { name: true }
 //         });
 
-//         // Extract employee names for filtering
 //         const employeeNames = employeesUnderSpoc.map(emp => emp.name);
 
-//         // If no employees found under this SPOC, return error
 //         if (employeeNames.length === 0) {
 //             return res.status(404).json({
 //                 success: false,
@@ -323,15 +501,12 @@
 //             });
 //         }
 
-//         // First check which worklogs exist and belong to employees under this SPOC
 //         const existingWorklogs = await prisma.todaysWorklog.findMany({
 //             where: {
 //                 id: { in: ids },
-//                 name: { in: employeeNames } // Check if worklogs belong to SPOC's employees
+//                 name: { in: employeeNames }
 //             },
-//             select: {
-//                 id: true
-//             }
+//             select: { id: true }
 //         });
 
 //         const validWorklogIds = existingWorklogs.map(log => log.id);
@@ -343,25 +518,30 @@
 //             });
 //         }
 
-//         // Bulk update only the valid worklogs
+//         // 🟢 Automation: set both audit_status & request_status = 'Rejected' if rejected
+//         const updateData = {
+//             audit_status: auditStatus,
+//             reviewed_at: new Date(),
+//             reviewed_by: spocName
+//         };
+
+//         if (auditStatus === 'Rejected') {
+//             updateData.request_status = 'Rejected';
+//         }
+
 //         const result = await prisma.todaysWorklog.updateMany({
 //             where: {
 //                 id: { in: validWorklogIds },
-//                 name: { in: employeeNames } // Double security check
+//                 name: { in: employeeNames }
 //             },
-//             data: {
-//                 audit_status: auditStatus,
-//                 reviewed_at: new Date(),
-//                 reviewed_by: spocName
-//             }
+//             data: updateData
 //         });
 
 //         res.status(200).json({
 //             success: true,
 //             message: `${result.count} worklogs ${auditStatus.toLowerCase()} successfully`,
 //             modifiedCount: result.count,
-//             totalRequested: worklogIds.length,
-//             validWorklogsUpdated: result.count
+//             totalRequested: worklogIds.length
 //         });
 //     } catch (error) {
 //         console.error('Error bulk updating worklog status:', error);
@@ -373,6 +553,8 @@
 //     }
 // };
 
+
+
 // module.exports = {
 //     getEmployees,
 //     getWorklogs,
@@ -380,7 +562,9 @@
 //     bulkUpdateWorklogStatus
 // };
 
+
 const prisma = require('../config/prisma');
+const { queueNotification } = require("../utils/queueNotification");
 
 // Get all employees under this SPOC
 const getEmployees = async (req, res) => {
@@ -565,201 +749,11 @@ const getWorklogs = async (req, res) => {
 };
 
 // Update single worklog audit status
-// const updateWorklogStatus = async (req, res) => {
-//     try {
-//         const spocEmail = req.user.email;
-//         const spocName = req.user.name;
-//         const { worklogId, auditStatus } = req.body;
-
-//         // Validate audit status
-//         if (!['Pending', 'Approved', 'Rejected'].includes(auditStatus)) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: 'Invalid audit status'
-//             });
-//         }
-
-//         // Convert worklogId to integer if it's a string
-//         const id = parseInt(worklogId);
-
-//         // First, get all employees under this SPOC
-//         const employeesUnderSpoc = await prisma.users.findMany({
-//             where: {
-//                 spoc_email: spocEmail,
-//                 spoc_name: spocName
-//             },
-//             select: {
-//                 email: true,
-//                 name: true
-//             }
-//         });
-
-//         // Extract employee names for filtering
-//         const employeeNames = employeesUnderSpoc.map(emp => emp.name);
-
-//         // If no employees found under this SPOC, return error
-//         if (employeeNames.length === 0) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: 'No employees found under your supervision'
-//             });
-//         }
-
-//         // First check if the worklog exists and belongs to an employee under this SPOC
-//         const existingWorklog = await prisma.todaysWorklog.findFirst({
-//             where: {
-//                 id: id,
-//                 name: { in: employeeNames } // Check if the worklog belongs to one of SPOC's employees
-//             }
-//         });
-
-//         if (!existingWorklog) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: 'Worklog not found or unauthorized'
-//             });
-//         }
-
-//         // Update the worklog
-//         const worklog = await prisma.todaysWorklog.update({
-//             where: {
-//                 id: id
-//             },
-//             data: {
-//                 audit_status: auditStatus,
-//                 reviewed_at: new Date(),
-//                 reviewed_by: spocName
-//             },
-//             select: {
-//                 id: true,
-//                 audit_status: true,
-//                 name: true,
-//                 date: true
-//             }
-//         });
-
-//         res.status(200).json({
-//             success: true,
-//             message: `Worklog ${auditStatus.toLowerCase()} successfully`,
-//             worklog: {
-//                 _id: worklog.id.toString(),
-//                 auditStatus: worklog.audit_status,
-//                 employeeName: worklog.name,
-//                 date: worklog.date
-//             }
-//         });
-//     } catch (error) {
-//         console.error('Error updating worklog status:', error);
-//         res.status(500).json({
-//             success: false,
-//             message: 'Failed to update worklog status',
-//             error: error.message
-//         });
-//     }
-// };
-
-// // Bulk update worklog audit status
-// const bulkUpdateWorklogStatus = async (req, res) => {
-//     try {
-//         const spocEmail = req.user.email;
-//         const spocName = req.user.name;
-//         const { worklogIds, auditStatus } = req.body;
-
-//         // Validate
-//         if (!Array.isArray(worklogIds) || worklogIds.length === 0) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: 'worklogIds must be a non-empty array'
-//             });
-//         }
-
-//         if (!['Pending', 'Approved', 'Rejected'].includes(auditStatus)) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: 'Invalid audit status'
-//             });
-//         }
-
-//         // Convert worklogIds to integers
-//         const ids = worklogIds.map(id => parseInt(id));
-
-//         // First, get all employees under this SPOC
-//         const employeesUnderSpoc = await prisma.users.findMany({
-//             where: {
-//                 spoc_email: spocEmail
-//             },
-//             select: {
-//                 email: true,
-//                 name: true
-//             }
-//         });
-
-//         // Extract employee names for filtering
-//         const employeeNames = employeesUnderSpoc.map(emp => emp.name);
-
-//         // If no employees found under this SPOC, return error
-//         if (employeeNames.length === 0) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: 'No employees found under your supervision'
-//             });
-//         }
-
-//         // First check which worklogs exist and belong to employees under this SPOC
-//         const existingWorklogs = await prisma.todaysWorklog.findMany({
-//             where: {
-//                 id: { in: ids },
-//                 name: { in: employeeNames } // Check if worklogs belong to SPOC's employees
-//             },
-//             select: {
-//                 id: true
-//             }
-//         });
-
-//         const validWorklogIds = existingWorklogs.map(log => log.id);
-
-//         if (validWorklogIds.length === 0) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: 'No valid worklogs found or unauthorized access'
-//             });
-//         }
-
-//         // Bulk update only the valid worklogs
-//         const result = await prisma.todaysWorklog.updateMany({
-//             where: {
-//                 id: { in: validWorklogIds },
-//                 name: { in: employeeNames } // Double security check
-//             },
-//             data: {
-//                 audit_status: auditStatus,
-//                 reviewed_at: new Date(),
-//                 reviewed_by: spocName
-//             }
-//         });
-
-//         res.status(200).json({
-//             success: true,
-//             message: `${result.count} worklogs ${auditStatus.toLowerCase()} successfully`,
-//             modifiedCount: result.count,
-//             totalRequested: worklogIds.length,
-//             validWorklogsUpdated: result.count
-//         });
-//     } catch (error) {
-//         console.error('Error bulk updating worklog status:', error);
-//         res.status(500).json({
-//             success: false,
-//             message: 'Failed to bulk update worklog status',
-//             error: error.message
-//         });
-//     }
-// };
-
-// Update single worklog audit status
 const updateWorklogStatus = async (req, res) => {
     try {
         const spocEmail = req.user.email;
         const spocName = req.user.name;
+        const spocId = req.user.id;
         const { worklogId, auditStatus } = req.body;
 
         if (!['Pending', 'Approved', 'Rejected'].includes(auditStatus)) {
@@ -776,7 +770,10 @@ const updateWorklogStatus = async (req, res) => {
                 spoc_email: spocEmail,
                 spoc_name: spocName
             },
-            select: { name: true }
+            select: { 
+                id: true,
+                name: true 
+            }
         });
 
         const employeeNames = employeesUnderSpoc.map(emp => emp.name);
@@ -825,6 +822,46 @@ const updateWorklogStatus = async (req, res) => {
             }
         });
 
+        // ✅ QUEUE NOTIFICATION BASED ON STATUS CHANGE - FIXED
+        try {
+            const employee = employeesUnderSpoc.find(emp => emp.name === existingWorklog.name);
+            if (employee) {
+                console.log(`📋 Found employee ${employee.name} (ID: ${employee.id}) for notification`);
+                
+                if (auditStatus === 'Approved') {
+                    await queueNotification({
+                        userId: employee.id,
+                        type: 'MISSING_ENTRY_APPROVED_BY_SPOC',
+                        data: {
+                            employeeId: employee.id,
+                            spocName: spocName,
+                            entryDate: existingWorklog.date,
+                            requestId: existingWorklog.id,
+                        }
+                    });
+                    console.log(`📮 Queued notification MISSING_ENTRY_APPROVED_BY_SPOC for ${employee.name}`);
+                } else if (auditStatus === 'Rejected') {
+                    await queueNotification({
+                        userId: employee.id,
+                        type: 'MISSING_ENTRY_REJECTED_BY_SPOC',
+                        data: {
+                            employeeId: employee.id,
+                            spocName: spocName,
+                            entryDate: existingWorklog.date,
+                            requestId: existingWorklog.id,
+                            reason: req.body.reason || "No reason provided",
+                        }
+                    });
+                    console.log(`📮 Queued notification MISSING_ENTRY_REJECTED_BY_SPOC for ${employee.name}`);
+                }
+            } else {
+                console.log(`⚠️ No employee found with name: ${existingWorklog.name}`);
+            }
+        } catch (notifError) {
+            console.error("Failed to queue notification:", notifError);
+            // Don't fail the request if notification fails
+        }
+
         res.status(200).json({
             success: true,
             message: `Worklog ${auditStatus.toLowerCase()} successfully`,
@@ -851,6 +888,7 @@ const bulkUpdateWorklogStatus = async (req, res) => {
     try {
         const spocEmail = req.user.email;
         const spocName = req.user.name;
+        const spocId = req.user.id;
         const { worklogIds, auditStatus } = req.body;
 
         if (!Array.isArray(worklogIds) || worklogIds.length === 0) {
@@ -871,7 +909,10 @@ const bulkUpdateWorklogStatus = async (req, res) => {
 
         const employeesUnderSpoc = await prisma.users.findMany({
             where: { spoc_email: spocEmail },
-            select: { name: true }
+            select: { 
+                id: true,
+                name: true 
+            }
         });
 
         const employeeNames = employeesUnderSpoc.map(emp => emp.name);
@@ -888,7 +929,11 @@ const bulkUpdateWorklogStatus = async (req, res) => {
                 id: { in: ids },
                 name: { in: employeeNames }
             },
-            select: { id: true }
+            select: { 
+                id: true,
+                name: true,
+                date: true 
+            }
         });
 
         const validWorklogIds = existingWorklogs.map(log => log.id);
@@ -919,6 +964,59 @@ const bulkUpdateWorklogStatus = async (req, res) => {
             data: updateData
         });
 
+        // ✅ QUEUE BULK NOTIFICATIONS - FIXED
+        try {
+            if (auditStatus === 'Approved') {
+                for (const worklog of existingWorklogs) {
+                    const employee = employeesUnderSpoc.find(emp => emp.name === worklog.name);
+                    if (employee) {
+                        console.log(`📋 Found employee ${employee.name} (ID: ${employee.id}) for bulk notification`);
+                        
+                        await queueNotification({
+                            userId: employee.id,
+                            type: 'MISSING_ENTRY_APPROVED_BY_SPOC',
+                            data: {
+                                employeeId: employee.id,
+                                spocName: spocName,
+                                entryDate: worklog.date,
+                                requestId: worklog.id,
+                            }
+                        });
+                        
+                        console.log(`📮 Queued notification MISSING_ENTRY_APPROVED_BY_SPOC for ${employee.name}`);
+                    } else {
+                        console.log(`⚠️ No employee found with name: ${worklog.name}`);
+                    }
+                }
+            } else if (auditStatus === 'Rejected') {
+                for (const worklog of existingWorklogs) {
+                    const employee = employeesUnderSpoc.find(emp => emp.name === worklog.name);
+                    if (employee) {
+                        console.log(`📋 Found employee ${employee.name} (ID: ${employee.id}) for bulk notification`);
+                        
+                        await queueNotification({
+                            userId: employee.id,
+                            type: 'MISSING_ENTRY_REJECTED_BY_SPOC',
+                            data: {
+                                employeeId: employee.id,
+                                spocName: spocName,
+                                entryDate: worklog.date,
+                                requestId: worklog.id,
+                                reason: req.body.reason || "No reason provided",
+                            }
+                        });
+                        
+                        console.log(`📮 Queued notification MISSING_ENTRY_REJECTED_BY_SPOC for ${employee.name}`);
+                    } else {
+                        console.log(`⚠️ No employee found with name: ${worklog.name}`);
+                    }
+                }
+            }
+        } catch (notifError) {
+            console.error("Failed to queue bulk notifications:", notifError);
+            // Don't fail the request if notifications fail
+        }
+
         res.status(200).json({
             success: true,
             message: `${result.count} worklogs ${auditStatus.toLowerCase()} successfully`,
@@ -934,8 +1032,6 @@ const bulkUpdateWorklogStatus = async (req, res) => {
         });
     }
 };
-
-
 
 module.exports = {
     getEmployees,
