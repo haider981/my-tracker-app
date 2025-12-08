@@ -150,3 +150,19 @@ model UnitType {
 
   @@map("UnitType")
 }
+
+model Notification {
+  id            Int       @id @default(autoincrement())
+  userId        Int       // Changed from String to Int to match Users.id
+  type          String    
+  title         String    
+  message       String    @db.Text 
+  data          Json?     
+  isRead        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  readAt        DateTime?
+  
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("Notification")
+}
