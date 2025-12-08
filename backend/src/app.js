@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const path = require('path');
 
+require('./services/notificationWorker');
+
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const projectRoutes = require("./routes/projectRoutes");
