@@ -1,0 +1,63 @@
+// backend/src/services/notificationWorker.js
+const notificationQueue = require('../config/queue');
+const { NotificationService } = require('./notificationService');
+
+const notificationService = new NotificationService();
+
+// Process notification jobs
+notificationQueue.process(async (job) => {
+  const { type, data } = job.data;
+  
+  console.log(`🔄 Processing notification: ${type}`);
+
+  try {
+    const methodMap = {
+      ENTRY_APPROVED_BY_SPOC: 'notifyEntryApprovedBySpoc',
+      ENTRY_REJECTED_BY_SPOC: 'notifyEntryRejectedBySpoc',
+      ENTRY_APPROVED_BY_ADMIN: 'notifyEntryApprovedByAdmin',
+      ENTRY_REJECTED_BY_ADMIN: 'notifyEntryRejectedByAdmin',
+      ENTRY_ADDED_BY_ADMIN: 'notifyEntryAddedByAdmin',
+      ENTRY_EDITED_BY_ADMIN: 'notifyEntryEditedByAdmin',
+      MISSING_ENTRY_APPROVED_BY_SPOC: 'notifyMissingEntryApprovedBySpoc',
+      MISSING_ENTRY_REJECTED_BY_SPOC: 'notifyMissingEntryRejectedBySpoc',
+      MISSING_ENTRY_APPROVED_BY_ADMIN: 'notifyMissingEntryApprovedByAdmin',
+      MISSING_ENTRY_REJECTED_BY_ADMIN: 'notifyMissingEntryRejectedByAdmin',
+      NIGHT_SHIFT_MARKED: 'notifyNightShiftMarked',
+      SUNDAY_SHIFT_MARKED: 'notifySundayShiftMarked',
+      SPOC_ENTRY_APPROVED_BY_ADMIN: 'notifySpocEntryApproved',
+      SPOC_ENTRY_REJECTED_BY_ADMIN: 'notifySpocEntryRejected',
+      SPOC_MISSING_ENTRY_APPROVED: 'notifySpocMissingEntryApproved',
+      SPOC_MISSING_ENTRY_REJECTED: 'notifySpocMissingEntryRejected',
+      SPOC_SHIFT_MARKED_BY_ADMIN: 'notifySpocShiftMarkedByAdmin',
+      PROJECT_APPROVED_BY_ADMIN: 'notifyProjectApproved',
+      PROJECT_REJECTED_BY_ADMIN: 'notifyProjectRejected',
+      // ADMIN_MISSING_ENTRY_PENDING: 'notifyAdminMissingEntryPending',
+      // ADMIN_PROJECT_REQUEST_PENDING: 'notifyAdminProjectRequestPending',
+    };
+
+    const methodName = methodMap[type];
+    
+    if (methodName && typeof notificationService[methodName] === 'function') {
+      await notificationService[methodName](data);
+      console.log(`✓ Notification ${type} processed successfully`);
+    } else {
+      console.warn(`⚠ Unknown notification type: ${type}`);
+    }
+
+    return { success: true, type };
+  } catch (error) {
+    console.error(`❌ Error processing notification ${type}:`, error);
+    throw error;
+  }
+});
+
+console.log('🚀 Notification worker started and listening for jobs...');
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('🛑 SIGTERM received, closing notification worker...');
+  await notificationQueue.close();
+  process.exit(0);
+});
+
+module.exports = notificationQueue;
