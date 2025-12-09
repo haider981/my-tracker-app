@@ -14,16 +14,34 @@ enum Role {
 }
 
 model Users {
-  id    Int    @id @default(autoincrement())
-  name  String
-  email String @unique
-  spoc_name  String
-  spoc_email String
-  team  String
-  sub_team String
-  role  String?
-  // optional createdAt for bookkeeping
-  //createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  spoc_name      String?
+  spoc_email     String?
+  team           String
+  sub_team       String
+  role           String?
+  
+  notifications  Notification[]
+}
+
+model Notification {
+  id            Int       @id @default(autoincrement())
+  userId        Int       
+  type          String    
+  title         String    
+  message       String    @db.Text 
+  data          Json?     
+  isRead        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  readAt        DateTime?
+
+  user          Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("Notification")
 }
 
 model ProjectRecords {
@@ -149,20 +167,4 @@ model UnitType {
   created_by   String
 
   @@map("UnitType")
-}
-
-model Notification {
-  id            Int       @id @default(autoincrement())
-  userId        Int       // Changed from String to Int to match Users.id
-  type          String    
-  title         String    
-  message       String    @db.Text 
-  data          Json?     
-  isRead        Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  readAt        DateTime?
-  
-  @@index([userId, isRead])
-  @@index([createdAt])
-  @@map("Notification")
 }
