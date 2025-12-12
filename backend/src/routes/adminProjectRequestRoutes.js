@@ -27,4 +27,6 @@ router.put("/update-status", authMiddleware, ctrl.updateProjectStatus);
 router.put("/bulk-update-status", authMiddleware, ctrl.bulkUpdateProjectStatus);
 router.get("/spocs", authMiddleware, ctrl.getSpocs);
 
+router.get('/pending-count', authMiddleware, ctrl.countPendingProjectRequests);
+
 module.exports = router;
