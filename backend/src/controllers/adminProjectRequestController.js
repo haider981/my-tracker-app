@@ -161,3 +161,25 @@ exports.getSpocs = async (req, res) => {
 
   return res.json({ spocs });
 };
+
+exports.countPendingProjectRequests = async (req, res) => {
+    try {
+        const count = await prisma.projectRecords.count({
+            where: {
+                audit_status: 'In Review'
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            count: count
+        });
+    } catch (error) {
+        console.error('Error fetching pending project requests count:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch pending project requests count',
+            error: error.message
+        });
+    }
+};
