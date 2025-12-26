@@ -228,12 +228,12 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
           });
           
           // Clear today's worklog entries after successful submission
-          await prisma.todaysWorklog.deleteMany({
-            where: {
-              name: { equals: user.name, mode: "insensitive" },
-              date: today,
-            }
-          });
+          // await prisma.todaysWorklog.deleteMany({
+          //   where: {
+          //     name: { equals: user.name, mode: "insensitive" },
+          //     date: today,
+          //   }
+          // });
           
           totalSubmitted += entriesToSubmit.length;
           processedUsers.push({ 
@@ -257,13 +257,13 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
           }
           
           if (individualSubmitted > 0) {
-            // Clear today's worklog entries after successful individual submissions
-            await prisma.todaysWorklog.deleteMany({
-              where: {
-                name: { equals: user.name, mode: "insensitive" },
-                date: today,
-              }
-            });
+            // // Clear today's worklog entries after successful individual submissions
+            // await prisma.todaysWorklog.deleteMany({
+            //   where: {
+            //     name: { equals: user.name, mode: "insensitive" },
+            //     date: today,
+            //   }
+            // });
             
             totalSubmitted += individualSubmitted;
             processedUsers.push({ 
