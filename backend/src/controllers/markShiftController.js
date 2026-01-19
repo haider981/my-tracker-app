@@ -1086,9 +1086,17 @@ const prisma = require("../config/prisma");
 const { queueNotification } = require("../utils/queueNotification");
 
 // Utility: find upcoming Sunday (UTC)
+// function getNextSundayUTC(date) {
+//   const sunday = new Date(date);
+//   const diff = (7 - sunday.getUTCDay()) % 7 || 7;
+//   sunday.setUTCDate(sunday.getUTCDate() + diff);
+//   sunday.setUTCHours(0, 0, 0, 0);
+//   return sunday;
+// }
+
 function getNextSundayUTC(date) {
   const sunday = new Date(date);
-  const diff = (7 - sunday.getUTCDay()) % 7 || 7;
+  const diff = sunday.getUTCDay() === 0 ? 0 : (7 - sunday.getUTCDay()); // ✅ 0 if Sunday
   sunday.setUTCDate(sunday.getUTCDate() + diff);
   sunday.setUTCHours(0, 0, 0, 0);
   return sunday;
