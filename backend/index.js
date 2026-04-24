@@ -98,7 +98,8 @@
 // const port = process.env.PORT || 5000;
 // app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
 
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 const app = require("./src/app");
 const prisma = require("./src/config/prisma");  // ⬅️ import here
 

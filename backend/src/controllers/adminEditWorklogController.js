@@ -300,7 +300,7 @@ const createWorklogEntry = async (req, res) => {
     // Find employee team and ID
     const employee = await prisma.users.findFirst({
       where: { name: data.employeeName },
-      select: { id: true, team: true, email: true }
+      select: { id: true, team: true, email: true, role: true, name: true }
     });
 
     if (!employee) {
@@ -341,16 +341,25 @@ const createWorklogEntry = async (req, res) => {
     try {
       console.log(`📋 Found employee ${employee.email} (ID: ${employee.id}) for notification`);
       
+      const isSpoc = employee.role?.toLowerCase() === "spoc";
       await queueNotification({
         userId: employee.id,
-        type: "ENTRY_ADDED_BY_ADMIN",
-        data: {
-          employeeId: employee.id,
-          adminName: adminActionBy,
-          entryDate: newWorklog.date,
-          entryId: newWorklog.id,
-          bulkCount: 1,
-        }
+        type: isSpoc ? "SPOC_ENTRY_APPROVED_BY_ADMIN" : "ENTRY_ADDED_BY_ADMIN",
+        data: isSpoc
+          ? {
+              spocId: employee.id,
+              adminName: adminActionBy,
+              entryDate: newWorklog.date,
+              entryId: newWorklog.id,
+              bulkCount: 1,
+            }
+          : {
+              employeeId: employee.id,
+              adminName: adminActionBy,
+              entryDate: newWorklog.date,
+              entryId: newWorklog.id,
+              bulkCount: 1,
+            }
       });
       
       console.log(`📮 Queued notification ENTRY_ADDED_BY_ADMIN for employee ID ${employee.id}`);
@@ -411,7 +420,7 @@ const updateWorklogEntry = async (req, res) => {
     // Get employee ID
     const employee = await prisma.users.findFirst({
       where: { name: existingWorklog.name },
-      select: { id: true, email: true, name: true }
+      select: { id: true, email: true, name: true, role: true }
     });
 
     const updated = await prisma.masterDatabase.update({
@@ -441,16 +450,25 @@ const updateWorklogEntry = async (req, res) => {
       if (employee) {
         console.log(`📋 Found employee ${employee.name} (ID: ${employee.id}) for notification`);
         
+        const isSpoc = employee.role?.toLowerCase() === "spoc";
         await queueNotification({
           userId: employee.id,
-          type: "ENTRY_EDITED_BY_ADMIN",
-          data: {
-            employeeId: employee.id,
-            adminName: adminActionBy,
-            entryDate: updated.date,
-            entryId: updated.id,
-            bulkCount: 1,
-          }
+          type: isSpoc ? "SPOC_ENTRY_APPROVED_BY_ADMIN" : "ENTRY_EDITED_BY_ADMIN",
+          data: isSpoc
+            ? {
+                spocId: employee.id,
+                adminName: adminActionBy,
+                entryDate: updated.date,
+                entryId: updated.id,
+                bulkCount: 1,
+              }
+            : {
+                employeeId: employee.id,
+                adminName: adminActionBy,
+                entryDate: updated.date,
+                entryId: updated.id,
+                bulkCount: 1,
+              }
         });
         
         console.log(`📮 Queued notification ENTRY_EDITED_BY_ADMIN for ${employee.name}`);

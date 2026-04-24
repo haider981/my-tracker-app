@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const { queueNotification } = require("../utils/queueNotification");
 
 /* =================== GET PROJECT REQUESTS =================== */
 exports.getProjectRequests = async (req, res) => {
@@ -63,6 +64,7 @@ exports.getProjectRequests = async (req, res) => {
 exports.updateProjectStatus = async (req, res) => {
   try {
     const { projectId, auditStatus } = req.body;
+    const adminName = req.user?.name || req.user?.email || "Admin";
 
     if (!projectId || !auditStatus) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -74,6 +76,40 @@ exports.updateProjectStatus = async (req, res) => {
         audit_status: auditStatus,        // ✅ removed adminComments
       },
     });
+
+    // Notify SPOC when admin approves/rejects project request
+    try {
+      if (auditStatus === "Approved" || auditStatus === "Rejected") {
+        const spoc = await prisma.users.findFirst({
+          where: {
+            OR: [
+              { email: project.email || undefined },
+              { name: project.name || undefined },
+            ],
+          },
+          select: { id: true, email: true, name: true },
+        });
+
+        if (spoc) {
+          await queueNotification({
+            userId: spoc.id,
+            type: auditStatus === "Approved" ? "PROJECT_APPROVED_BY_ADMIN" : "PROJECT_REJECTED_BY_ADMIN",
+            data: {
+              spocId: spoc.id,
+              adminName,
+              projectName: project.project_name,
+              projectId: project.project_id,
+              reason: auditStatus === "Rejected" ? "Project request rejected by admin" : undefined,
+            },
+          });
+        } else {
+          console.log(`[updateProjectStatus] SPOC user not found for project ${project.project_id}`);
+        }
+      }
+    } catch (notifError) {
+      console.error("[updateProjectStatus] Notification queue error:", notifError);
+      // Keep project status update successful even if notification fails
+    }
 
     res.json({ message: "Project updated", project });
   } catch (err) {
@@ -87,10 +123,16 @@ exports.updateProjectStatus = async (req, res) => {
 exports.bulkUpdateProjectStatus = async (req, res) => {
   try {
     const { projectIds, auditStatus} = req.body;
+    const adminName = req.user?.name || req.user?.email || "Admin";
 
     if (!projectIds || !auditStatus) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+
+    const projectsToUpdate = await prisma.projectRecords.findMany({
+      where: { project_id: { in: projectIds } },
+      select: { project_id: true, project_name: true, email: true, name: true },
+    });
 
     await prisma.projectRecords.updateMany({
       where: { project_id: { in: projectIds } },
@@ -98,6 +140,43 @@ exports.bulkUpdateProjectStatus = async (req, res) => {
         audit_status: auditStatus,
       },
     });
+
+    // Notify SPOCs for bulk approve/reject
+    try {
+      if (auditStatus === "Approved" || auditStatus === "Rejected") {
+        for (const project of projectsToUpdate) {
+          const spoc = await prisma.users.findFirst({
+            where: {
+              OR: [
+                { email: project.email || undefined },
+                { name: project.name || undefined },
+              ],
+            },
+            select: { id: true, email: true, name: true },
+          });
+
+          if (!spoc) {
+            console.log(`[bulkUpdateProjectStatus] SPOC user not found for project ${project.project_id}`);
+            continue;
+          }
+
+          await queueNotification({
+            userId: spoc.id,
+            type: auditStatus === "Approved" ? "PROJECT_APPROVED_BY_ADMIN" : "PROJECT_REJECTED_BY_ADMIN",
+            data: {
+              spocId: spoc.id,
+              adminName,
+              projectName: project.project_name,
+              projectId: project.project_id,
+              reason: auditStatus === "Rejected" ? "Project request rejected by admin" : undefined,
+            },
+          });
+        }
+      }
+    } catch (notifError) {
+      console.error("[bulkUpdateProjectStatus] Notification queue error:", notifError);
+      // Keep bulk update successful even if notification fails
+    }
 
     res.json({ message: "Bulk update successful" });
   } catch (err) {
