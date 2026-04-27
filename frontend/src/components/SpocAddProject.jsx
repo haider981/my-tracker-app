@@ -11,6 +11,7 @@ export default function AdminAddProject() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [approveMissingCount, setApproveMissingCount] = useState(0);
     const [openWorklogs, setOpenWorklogs] = useState(false);
     const [openProjects, setOpenProjects] = useState(false);
 
@@ -90,10 +91,33 @@ export default function AdminAddProject() {
         }
     };
 
+    const fetchSpocCounts = async () => {
+        try {
+            const token = localStorage.getItem("authToken");
+            if (!token) return;
+            const missingRes = await fetch(`${API_BASE_URL}/spoc/request/count`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+            if (missingRes.ok) {
+                const missingData = await missingRes.json();
+                setApproveMissingCount(Number(missingData?.count || 0));
+            } else {
+                setApproveMissingCount(0);
+            }
+        } catch (err) {
+            console.error("Failed to fetch SPOC sidebar counts:", err);
+        }
+    };
+
     useEffect(() => {
         if (!user) return;
         fetchUnreadCount();
-        const intervalId = setInterval(fetchUnreadCount, 60000);
+        fetchSpocCounts();
+        const intervalId = setInterval(() => {
+            fetchUnreadCount();
+            fetchSpocCounts();
+        }, 60000);
         return () => clearInterval(intervalId);
     }, [user]);
 
@@ -462,14 +486,14 @@ export default function AdminAddProject() {
                         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)} />
                         {/* Mobile Sidebar */}
                         <aside className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-80 bg-gray-800 text-white shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
-                            <SidebarLinks navigate={navigate} location={location} close={() => setSidebarOpen(false)} unreadCount={unreadCount} />
+                            <SidebarLinks navigate={navigate} location={location} close={() => setSidebarOpen(false)} unreadCount={unreadCount} approveMissingCount={approveMissingCount} />
                         </aside>
                     </div>
                 )}
 
                 {/* Desktop Sidebar - Hidden on mobile, visible on lg+ */}
                 <aside className="hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] w-72 bg-gray-800 text-white shadow-xl overflow-y-auto">
-                    <SidebarLinks navigate={navigate} location={location} unreadCount={unreadCount} />
+                    <SidebarLinks navigate={navigate} location={location} unreadCount={unreadCount} approveMissingCount={approveMissingCount} />
                 </aside>
 
                 {/* Main content with proper margin for sidebar */}
@@ -700,34 +724,15 @@ export default function AdminAddProject() {
 }
 
 /* Sidebar Links Component for SPOC Dashboard */
-function SidebarLinks({ navigate, location, close, unreadCount = 0 }) {
-  const [openMissingEntry, setOpenMissingEntry] = useState(false);
-
-  // Keep sections open if child page active
-  useEffect(() => {
-    if (location.pathname.includes("missing-entry")) {
-      setOpenMissingEntry(true);
-    }
-  }, [location]);
-
-  const handleNavigation = (path, isChildOfMissingEntry = false) => {
+function SidebarLinks({ navigate, location, close, unreadCount = 0, approveMissingCount = 0 }) {
+  const handleNavigation = (path) => {
     navigate(path);
-    
-    // Only close the dropdown if navigating away from missing entry section
-    if (!isChildOfMissingEntry && !path.includes("missing-entry")) {
-      setOpenMissingEntry(false);
-    }
-    
     if (close) close();
   };
-
-  const toggleMissingEntry = () => {
-    setOpenMissingEntry(!openMissingEntry);
-  };
-
-  // Check if we're on home page and NOT on any missing entry page
   const isHomePage = location.pathname === "/spoc-dashboard";
-  const isMissingEntryPage = location.pathname.includes("missing-entry");
+  const isRequestMissingEntryPage = location.pathname.includes("missing-entry-request");
+  const isApproveMissingEntryPage = location.pathname.includes("missing-entry-status");
+  const isApproveWorklogsPage = location.pathname.includes("approve-worklogs");
   const isNotificationsPage = location.pathname.includes("/spoc/notifications");
 
   return (
@@ -737,7 +742,7 @@ function SidebarLinks({ navigate, location, close, unreadCount = 0 }) {
         {/* Home */}
         <button
           className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors ${
-            isHomePage && !isMissingEntryPage ? "bg-gray-700" : ""
+            isHomePage ? "bg-gray-700" : ""
           }`}
           onClick={() => handleNavigation("/spoc-dashboard")}
         >
@@ -746,50 +751,33 @@ function SidebarLinks({ navigate, location, close, unreadCount = 0 }) {
 
         {/* Approve Worklogs */}
         <button
-          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors ${
-            location.pathname.includes("approve-worklogs") ? "bg-gray-700" : ""
+          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors flex items-center justify-between ${
+            isApproveWorklogsPage ? "bg-gray-700" : ""
           }`}
           onClick={() => handleNavigation("/spoc/approve-worklogs")}
         >
-          Approve Worklogs
+          <span>Approve Worklogs</span>
         </button>
 
-        {/* Missing Entry - COLLAPSIBLE SECTION */}
-        <div>
-          <button
-            className={`w-full flex justify-between items-center hover:bg-gray-700 p-3 rounded-lg transition-colors ${
-              isMissingEntryPage && !location.pathname.includes("missing-entry-request") && !location.pathname.includes("missing-entry-status")
-                ? "bg-gray-700"
-                : ""
+        <button
+          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors ${isRequestMissingEntryPage ? "bg-gray-700" : ""
             }`}
-            onClick={toggleMissingEntry}
-          >
-            <span>Missing Entry</span>
-            <span className="transition-transform duration-200">
-              {openMissingEntry ? "▾" : "▸"}
+          onClick={() => handleNavigation("/spoc/missing-entry-request")}
+        >
+          Request Missing Entry
+        </button>
+        <button
+          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors flex items-center justify-between ${isApproveMissingEntryPage ? "bg-gray-700" : ""
+            }`}
+          onClick={() => handleNavigation("/spoc/missing-entry-status")}
+        >
+          <span>Approve Missing Entry</span>
+          {approveMissingCount > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-2 text-xs font-bold text-white bg-gradient-to-r from-red-500 to-pink-500 rounded-full shadow-lg animate-pulse">
+              {approveMissingCount > 99 ? "99+" : approveMissingCount}
             </span>
-          </button>
-          {openMissingEntry && (
-            <div className="ml-4 mt-2 flex flex-col space-y-2 animate-fadeIn">
-              <button
-                className={`text-left hover:bg-gray-700 p-2 rounded-lg transition-colors ${
-                  location.pathname.includes("missing-entry-request") ? "bg-gray-700" : ""
-                }`}
-                onClick={() => handleNavigation("/spoc/missing-entry-request", true)}
-              >
-                Request Missing Entry
-              </button>
-              <button
-                className={`text-left hover:bg-gray-700 p-2 rounded-lg transition-colors ${
-                  location.pathname.includes("missing-entry-status") ? "bg-gray-700" : ""
-                }`}
-                onClick={() => handleNavigation("/spoc/missing-entry-status", true)}
-              >
-                Approve Missing Entry
-              </button>
-            </div>
           )}
-        </div>
+        </button>
         <button
           className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors ${
             location.pathname.includes("/spoc/add-project") ? "bg-gray-700" : ""

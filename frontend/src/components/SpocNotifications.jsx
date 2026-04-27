@@ -17,6 +17,7 @@ export default function SpocNotifications() {
   // Notifications State
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [approveMissingCount, setApproveMissingCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [skip, setSkip] = useState(0);
@@ -133,6 +134,25 @@ export default function SpocNotifications() {
     }
   }, []);
 
+  const fetchSpocCounts = useCallback(async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+      const missingRes = await fetch(`${API_BASE_URL}/spoc/request/count`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+      if (missingRes.ok) {
+        const missingData = await missingRes.json();
+        setApproveMissingCount(Number(missingData?.count || 0));
+      } else {
+        setApproveMissingCount(0);
+      }
+    } catch (err) {
+      console.error("Error fetching SPOC sidebar counts:", err);
+    }
+  }, []);
+
   /* ------------------ REQUEST NOTIFICATION PERMISSION ------------------ */
   const requestNotificationPermission = useCallback(async () => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -148,10 +168,12 @@ export default function SpocNotifications() {
     if (pollingRef.current) return;
 
     fetchUnreadCount();
+    fetchSpocCounts();
     pollingRef.current = setInterval(() => {
       fetchUnreadCount();
+      fetchSpocCounts();
     }, POLLING_INTERVAL);
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, fetchSpocCounts]);
 
   /* ------------------ STOP POLLING ------------------ */
   const stopPolling = useCallback(() => {
@@ -329,6 +351,7 @@ export default function SpocNotifications() {
               location={location}
               close={() => setSidebarOpen(false)}
               unreadCount={unreadCount}
+              approveMissingCount={approveMissingCount}
             />
           </aside>
         </div>
@@ -338,6 +361,7 @@ export default function SpocNotifications() {
           navigate={navigate}
           location={location}
           unreadCount={unreadCount}
+          approveMissingCount={approveMissingCount}
         />
       </aside>
 
@@ -694,29 +718,16 @@ function Navbar({
 //   );
 // }
 
-function SidebarLinks({ navigate, location, close, unreadCount }) {
-  const [openMissingEntry, setOpenMissingEntry] = useState(false);
-
-  useEffect(() => {
-    if (location.pathname.includes("missing-entry")) {
-      setOpenMissingEntry(true);
-    }
-  }, [location]);
-
-  const handleNavigation = (path, isChildOfMissingEntry = false) => {
+function SidebarLinks({ navigate, location, close, unreadCount, approveMissingCount = 0 }) {
+  const handleNavigation = (path) => {
     navigate(path);
-    if (!isChildOfMissingEntry && !path.includes("missing-entry")) {
-      setOpenMissingEntry(false);
-    }
     if (close) close();
   };
 
-  const toggleMissingEntry = () => {
-    setOpenMissingEntry(!openMissingEntry);
-  };
-
   const isHomePage = location.pathname === "/spoc-dashboard";
-  const isMissingEntryPage = location.pathname.includes("missing-entry");
+  const isRequestMissingEntryPage = location.pathname.includes("missing-entry-request");
+  const isApproveMissingEntryPage = location.pathname.includes("missing-entry-status");
+  const isApproveWorklogsPage = location.pathname.includes("approve-worklogs");
   const isNotificationsPage = location.pathname.includes("notifications");
 
   return (
@@ -733,47 +744,32 @@ function SidebarLinks({ navigate, location, close, unreadCount }) {
         </button>
 
         <button
-          className={`text-left text-base hover:bg-gray-700 p-3 rounded-lg transition-colors ${
-            location.pathname.includes("approve-worklogs") ? "bg-gray-700" : ""
+          className={`text-left text-base hover:bg-gray-700 p-3 rounded-lg transition-colors flex items-center justify-between ${
+            isApproveWorklogsPage ? "bg-gray-700" : ""
           }`}
           onClick={() => handleNavigation("/spoc/approve-worklogs")}
         >
-          Approve Worklogs
+          <span>Approve Worklogs</span>
         </button>
-
-        <div>
-          <button
-            className={`w-full text-base flex justify-between items-center hover:bg-gray-700 p-3 rounded-lg transition-colors ${
-              isMissingEntryPage ? "bg-gray-700" : ""
+        <button
+          className={`text-left text-base hover:bg-gray-700 p-3 rounded-lg transition-colors ${isRequestMissingEntryPage ? "bg-gray-700" : ""
             }`}
-            onClick={toggleMissingEntry}
-          >
-            <span>Missing Entry</span>
-            <span className="transition-transform duration-200">
-              {openMissingEntry ? "▾" : "▸"}
+          onClick={() => handleNavigation("/spoc/missing-entry-request")}
+        >
+          Request Missing Entry
+        </button>
+        <button
+          className={`text-left text-base hover:bg-gray-700 p-3 rounded-lg transition-colors flex items-center justify-between ${isApproveMissingEntryPage ? "bg-gray-700" : ""
+            }`}
+          onClick={() => handleNavigation("/spoc/missing-entry-status")}
+        >
+          <span>Approve Missing Entry</span>
+          {approveMissingCount > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-2 text-xs font-bold text-white bg-gradient-to-r from-red-500 to-pink-500 rounded-full shadow-lg animate-pulse">
+              {approveMissingCount > 99 ? "99+" : approveMissingCount}
             </span>
-          </button>
-          {openMissingEntry && (
-            <div className="ml-4 mt-2 flex flex-col space-y-2 animate-fadeIn">
-              <button
-                className={`text-left text-base hover:bg-gray-700 p-2 rounded-lg transition-colors ${
-                  location.pathname.includes("missing-entry-request") ? "bg-gray-700" : ""
-                }`}
-                onClick={() => handleNavigation("/spoc/missing-entry-request", true)}
-              >
-                Request Missing Entry
-              </button>
-              <button
-                className={`text-left text-base hover:bg-gray-700 p-2 rounded-lg transition-colors ${
-                  location.pathname.includes("missing-entry-status") ? "bg-gray-700" : ""
-                }`}
-                onClick={() => handleNavigation("/spoc/missing-entry-status", true)}
-              >
-                Approve Missing Entry
-              </button>
-            </div>
           )}
-        </div>
+        </button>
 
         <button
           className={`text-left text-base hover:bg-gray-700 p-3 rounded-lg transition-colors ${

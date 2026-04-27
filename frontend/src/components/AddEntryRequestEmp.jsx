@@ -2698,7 +2698,52 @@ const stopNotificationPolling = useCallback(() => {
             }
           }
         });
-        setRecentProjects(Array.from(projectMap.values()).slice(0, 10));
+        const normalizeProjectKey = (value) =>
+          (value || "")
+            .toString()
+            .trim()
+            .toLowerCase()
+            .replace(/[\s_-]+/g, "");
+
+        const recentCandidates = Array.from(projectMap.values()).slice(0, 20);
+        const resolvedRecentProjects = await Promise.all(
+          recentCandidates.map(async (p) => {
+            const keyId = normalizeProjectKey(p.id);
+            const keyName = normalizeProjectKey(p.name);
+            const searchTerm = (p.name || p.id || "").trim();
+            if (!searchTerm) return null;
+
+            try {
+              const { data: projectData } = await axios.get("/projects", {
+                params: { q: searchTerm, by: "id" },
+              });
+              const projectList = Array.isArray(projectData?.projects) ? projectData.projects : [];
+              const matched = projectList.find((vp) => {
+                const projectIdKey = normalizeProjectKey(vp.project_id);
+                return projectIdKey === keyName || projectIdKey === keyId;
+              });
+
+              if (!matched) return null;
+              return {
+                ...p,
+                id: (matched.project_id || p.id || "").trim(),
+                name: (matched.project_name || p.name || "").trim(),
+              };
+            } catch (error) {
+              return null;
+            }
+          })
+        );
+
+        const dedupedRecentProjects = Array.from(
+          new Map(
+            resolvedRecentProjects
+              .filter(Boolean)
+              .map((project) => [normalizeProjectKey(project.id), project])
+          ).values()
+        );
+
+        setRecentProjects(dedupedRecentProjects.slice(0, 10));
       } else {
         setPastRequests([]);
         setRecentProjects([]);

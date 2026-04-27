@@ -1189,6 +1189,7 @@ export default function AddEntryRequestSpoc() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [approveMissingCount, setApproveMissingCount] = useState(0);
   const [tokenExpired, setTokenExpired] = useState(false);
 
   const [teamDropdowns, setTeamDropdowns] = useState({
@@ -1291,12 +1292,35 @@ export default function AddEntryRequestSpoc() {
     }
   }, []);
 
+  const fetchSpocCounts = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+      const missingRes = await fetch(`${API_BASE_URL}/spoc/request/count`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+      if (missingRes.ok) {
+        const missingData = await missingRes.json();
+        setApproveMissingCount(Number(missingData?.count || 0));
+      } else {
+        setApproveMissingCount(0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch SPOC sidebar counts:", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     fetchUnreadCount();
-    const intervalId = setInterval(fetchUnreadCount, 60000);
+    fetchSpocCounts();
+    const intervalId = setInterval(() => {
+      fetchUnreadCount();
+      fetchSpocCounts();
+    }, 60000);
     return () => clearInterval(intervalId);
-  }, [user, fetchUnreadCount]);
+  }, [user, fetchUnreadCount, fetchSpocCounts]);
 
   // Fetch monthly request statistics
   const fetchMonthlyRequestStats = useCallback(async () => {
@@ -1607,7 +1631,52 @@ export default function AddEntryRequestSpoc() {
             }
           }
         });
-        setRecentProjects(Array.from(projectMap.values()).slice(0, 10));
+        const normalizeProjectKey = (value) =>
+          (value || "")
+            .toString()
+            .trim()
+            .toLowerCase()
+            .replace(/[\s_-]+/g, "");
+
+        const recentCandidates = Array.from(projectMap.values()).slice(0, 20);
+        const resolvedRecentProjects = await Promise.all(
+          recentCandidates.map(async (p) => {
+            const keyId = normalizeProjectKey(p.id);
+            const keyName = normalizeProjectKey(p.name);
+            const searchTerm = (p.name || p.id || "").trim();
+            if (!searchTerm) return null;
+
+            try {
+              const { data: projectData } = await axios.get("/projects", {
+                params: { q: searchTerm, by: "id" },
+              });
+              const projectList = Array.isArray(projectData?.projects) ? projectData.projects : [];
+              const matched = projectList.find((vp) => {
+                const projectIdKey = normalizeProjectKey(vp.project_id);
+                return projectIdKey === keyName || projectIdKey === keyId;
+              });
+
+              if (!matched) return null;
+              return {
+                ...p,
+                id: (matched.project_id || p.id || "").trim(),
+                name: (matched.project_name || p.name || "").trim(),
+              };
+            } catch (error) {
+              return null;
+            }
+          })
+        );
+
+        const dedupedRecentProjects = Array.from(
+          new Map(
+            resolvedRecentProjects
+              .filter(Boolean)
+              .map((project) => [normalizeProjectKey(project.id), project])
+          ).values()
+        );
+
+        setRecentProjects(dedupedRecentProjects.slice(0, 10));
       } else {
         setPastRequests([]);
         setRecentProjects([]);
@@ -2009,14 +2078,14 @@ export default function AddEntryRequestSpoc() {
           <div className="fixed inset-0 z-40 lg:hidden">
             <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)} />
             <aside className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-80 bg-gray-800 text-white shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto">
-              <SidebarLinks navigate={navigate} location={location} close={() => setSidebarOpen(false)} unreadCount={unreadCount} />
+              <SidebarLinks navigate={navigate} location={location} close={() => setSidebarOpen(false)} unreadCount={unreadCount} approveMissingCount={approveMissingCount} />
             </aside>
           </div>
         )}
 
         {/* Desktop Sidebar */}
         <aside className="hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] w-72 bg-gray-800 text-white shadow-xl overflow-y-auto">
-          <SidebarLinks navigate={navigate} location={location} unreadCount={unreadCount} />
+          <SidebarLinks navigate={navigate} location={location} unreadCount={unreadCount} approveMissingCount={approveMissingCount} />
         </aside>
 
         {/* Main Content */}
@@ -2439,34 +2508,15 @@ export default function AddEntryRequestSpoc() {
 }
 
 /* Sidebar Links Component for SPOC Dashboard */
-function SidebarLinks({ navigate, location, close, unreadCount = 0 }) {
-  const [openMissingEntry, setOpenMissingEntry] = useState(false);
-
-  // Keep sections open if child page active
-  useEffect(() => {
-    if (location.pathname.includes("missing-entry")) {
-      setOpenMissingEntry(true);
-    }
-  }, [location]);
-
-  const handleNavigation = (path, isChildOfMissingEntry = false) => {
+function SidebarLinks({ navigate, location, close, unreadCount = 0, approveMissingCount = 0 }) {
+  const handleNavigation = (path) => {
     navigate(path);
-
-    // Only close the dropdown if navigating away from missing entry section
-    if (!isChildOfMissingEntry && !path.includes("missing-entry")) {
-      setOpenMissingEntry(false);
-    }
-
     if (close) close();
   };
-
-  const toggleMissingEntry = () => {
-    setOpenMissingEntry(!openMissingEntry);
-  };
-
-  // Check if we're on home page and NOT on any missing entry page
   const isHomePage = location.pathname === "/spoc-dashboard";
-  const isMissingEntryPage = location.pathname.includes("missing-entry");
+  const isRequestMissingEntryPage = location.pathname.includes("missing-entry-request");
+  const isApproveMissingEntryPage = location.pathname.includes("missing-entry-status");
+  const isApproveWorklogsPage = location.pathname.includes("approve-worklogs");
   const isNotificationsPage = location.pathname.includes("/spoc/notifications");
 
   return (
@@ -2475,7 +2525,7 @@ function SidebarLinks({ navigate, location, close, unreadCount = 0 }) {
       <nav className="flex flex-col space-y-2">
         {/* Home */}
         <button
-          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors text-base ${isHomePage && !isMissingEntryPage ? "bg-gray-700" : ""
+          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors text-base ${isHomePage ? "bg-gray-700" : ""
             }`}
           onClick={() => handleNavigation("/spoc-dashboard")}
         >
@@ -2484,44 +2534,31 @@ function SidebarLinks({ navigate, location, close, unreadCount = 0 }) {
 
         {/* Approve Worklogs */}
         <button
-          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors text-base ${location.pathname.includes("approve-worklogs") ? "bg-gray-700" : ""
+          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors text-base flex items-center justify-between ${isApproveWorklogsPage ? "bg-gray-700" : ""
             }`}
           onClick={() => handleNavigation("/spoc/approve-worklogs")}
         >
-          Approve Worklogs
+          <span>Approve Worklogs</span>
         </button>
-
-        {/* Missing Entry - parent button */}
         <button
-          className={`w-full flex justify-between items-center hover:bg-gray-700 p-3 rounded-lg transition-colors text-base ${location.pathname.includes("missing-entry-requests") ? "bg-gray-700" : ""
+          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors text-base ${isRequestMissingEntryPage ? "bg-gray-700" : ""
             }`}
-          onClick={toggleMissingEntry}
+          onClick={() => handleNavigation("/spoc/missing-entry-request")}
         >
-          <span>Missing Entry</span>
-          <span className="transition-transform duration-200">
-            {openMissingEntry ? "▾" : "▸"}
-          </span>
+          Request Missing Entry
         </button>
-
-        {/* Sub-items */}
-        {openMissingEntry && (
-          <div className="ml-4 mt-2 flex flex-col space-y-2 animate-fadeIn">
-            <button
-              className={`text-left hover:bg-gray-700 p-2 rounded-lg transition-colors text-base ${location.pathname.includes("missing-entry-request") ? "bg-gray-700" : ""
-                }`}
-              onClick={() => handleNavigation("/spoc/missing-entry-request", true)}
-            >
-              Request Missing Entry
-            </button>
-            <button
-              className={`text-left hover:bg-gray-700 p-2 rounded-lg transition-colors text-base ${location.pathname.includes("missing-entry-status") ? "bg-gray-700" : ""
-                }`}
-              onClick={() => handleNavigation("/spoc/missing-entry-status", true)}
-            >
-              Approve Missing Entry
-            </button>
-          </div>
-        )}
+        <button
+          className={`text-left hover:bg-gray-700 p-3 rounded-lg transition-colors text-base flex items-center justify-between ${isApproveMissingEntryPage ? "bg-gray-700" : ""
+            }`}
+          onClick={() => handleNavigation("/spoc/missing-entry-status")}
+        >
+          <span>Approve Missing Entry</span>
+          {approveMissingCount > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-2 text-xs font-bold text-white bg-gradient-to-r from-red-500 to-pink-500 rounded-full shadow-lg animate-pulse">
+              {approveMissingCount > 99 ? "99+" : approveMissingCount}
+            </span>
+          )}
+        </button>
 
         {/* Add Project */}
         <button
