@@ -515,7 +515,7 @@ const getProjects = async (req, res) => {
         where,
         {
           audit_status: {
-            in: ["Approved","Added by Admin"],
+            in: ["Approved", "Added by Admin"],
           },
         },
       ],
@@ -549,6 +549,8 @@ const getProjects = async (req, res) => {
       return aName.localeCompare(bName);
     });
 
+    // Return approved/admin-added projects from ProjectRecords for search.
+    // Recent-project intersection is already handled in frontend using past entries.
     res.json({ success: true, projects: sortedProjects });
   } catch (err) {
     console.error("Error fetching projects:", err);
