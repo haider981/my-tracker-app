@@ -8,6 +8,7 @@ router.get('/employees', authMiddleware, spocApproveMissingRequest.getEmployees)
 
 // POST /api/spoc/worklogs - Get worklogs with filters
 router.post('/worklogs', authMiddleware, spocApproveMissingRequest.getWorklogs);
+router.get('/count', authMiddleware, spocApproveMissingRequest.getPendingMissingRequestCount);
 
 // PUT /api/spoc/worklogs/update-status - Update single worklog audit status
 router.put('/worklogs/update-status', authMiddleware, spocApproveMissingRequest.updateWorklogStatus);

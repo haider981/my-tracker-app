@@ -300,7 +300,7 @@ const createWorklogEntry = async (req, res) => {
     // Find employee team and ID
     const employee = await prisma.users.findFirst({
       where: { name: data.employeeName },
-      select: { id: true, team: true, email: true }
+      select: { id: true, team: true, email: true, role: true, name: true }
     });
 
     if (!employee) {
@@ -411,7 +411,7 @@ const updateWorklogEntry = async (req, res) => {
     // Get employee ID
     const employee = await prisma.users.findFirst({
       where: { name: existingWorklog.name },
-      select: { id: true, email: true, name: true }
+      select: { id: true, email: true, name: true, role: true }
     });
 
     const updated = await prisma.masterDatabase.update({

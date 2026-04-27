@@ -1332,6 +1332,43 @@ class SpocController {
     }
   }
 
+  static async getPendingWorklogsCount(req, res) {
+    try {
+      const spocEmail = req.user?.email || null;
+      if (!spocEmail) {
+        return sendJsonError(res, 401, "Missing user email in token.");
+      }
+
+      const employees = await findEmployeesBySpoc(spocEmail);
+      const names = asArray(employees)
+        .map((e) => e?.name)
+        .filter(Boolean);
+
+      if (names.length === 0) {
+        return res.json({ success: true, count: 0 });
+      }
+
+      const [pendingCount, rePendingCount] = await Promise.all([
+        prisma.masterDatabase.count({
+          where: { name: { in: names }, audit_status: "Pending" },
+        }),
+        prisma.masterDatabase.count({
+          where: { name: { in: names }, audit_status: "Re-Pending" },
+        }),
+      ]);
+
+      return res.json({
+        success: true,
+        count: Number(pendingCount || 0) + Number(rePendingCount || 0),
+      });
+    } catch (error) {
+      console.error("[getPendingWorklogsCount] Error:", error);
+      return sendJsonError(res, 500, "Internal server error", {
+        message: error?.message || String(error),
+      });
+    }
+  }
+
   /**
    * GET /api/spoc/employees
    * Simple mapping SPOC -> employees.

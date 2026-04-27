@@ -748,6 +748,53 @@ const getWorklogs = async (req, res) => {
     }
 };
 
+const getPendingMissingRequestCount = async (req, res) => {
+    try {
+        const spocEmail = req.user?.email;
+        if (!spocEmail) {
+            return res.status(401).json({
+                success: false,
+                message: "Missing user email in token"
+            });
+        }
+
+        const employeesUnderSpoc = await prisma.users.findMany({
+            where: {
+                spoc_email: spocEmail
+            },
+            select: {
+                name: true
+            }
+        });
+
+        const employeeNames = employeesUnderSpoc.map((emp) => emp.name).filter(Boolean);
+        if (employeeNames.length === 0) {
+            return res.status(200).json({ success: true, count: 0 });
+        }
+
+        const count = await prisma.todaysWorklog.count({
+            where: {
+                name: { in: employeeNames },
+                request_status: 'Pending',
+                is_entry_request: true,
+                audit_status: 'Pending'
+            }
+        });
+
+        return res.status(200).json({
+            success: true,
+            count: count || 0
+        });
+    } catch (error) {
+        console.error('Error fetching pending missing request count:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch pending missing request count',
+            error: error.message
+        });
+    }
+};
+
 // Update single worklog audit status
 const updateWorklogStatus = async (req, res) => {
     try {
@@ -1036,6 +1083,7 @@ const bulkUpdateWorklogStatus = async (req, res) => {
 module.exports = {
     getEmployees,
     getWorklogs,
+    getPendingMissingRequestCount,
     updateWorklogStatus,
     bulkUpdateWorklogStatus
 };
