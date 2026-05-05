@@ -71,7 +71,7 @@ const createProject = async (req, res) => {
     }
 };
 
-// Get all projects for the logged-in user
+// Get all projects (visible to SPOC for searching)
 const getAllProjects = async (req, res) => {
     try {
         const { email } = req.user || {};
@@ -83,7 +83,6 @@ const getAllProjects = async (req, res) => {
         }
 
         const projects = await prisma.projectRecords.findMany({
-            where: { email },
             orderBy: {
                 start_date: 'desc'
             }
@@ -337,6 +336,7 @@ module.exports = {
     requestHideProject,
     requestUnhideProject,
 };
+
 
 
 // const prisma = require("../config/prisma");
