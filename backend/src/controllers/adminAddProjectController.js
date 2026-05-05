@@ -70,7 +70,7 @@ const createProject = async (req, res) => {
     }
 };
 
-// Get all projects (admin can see all, or filter by user)
+// Get all projects (admin searchable list)
 const getAllProjects = async (req, res) => {
     try {
         const { email } = req.user || {};
@@ -81,11 +81,7 @@ const getAllProjects = async (req, res) => {
             });
         }
 
-        // For admin, get all projects; for regular users, filter by email
-        const whereClause = req.user.role === 'Admin' ? {} : { email };
-
         const projects = await prisma.projectRecords.findMany({
-            where: whereClause,
             orderBy: {
                 start_date: 'desc'
             }
