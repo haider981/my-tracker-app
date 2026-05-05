@@ -71,10 +71,13 @@ const createProject = async (req, res) => {
     }
 };
 
-// Get all projects (visible to SPOC for searching)
+// Get projects for SPOC page.
+// Default: only logged-in SPOC's projects.
+// scope=all: full project list for global search.
 const getAllProjects = async (req, res) => {
     try {
         const { email } = req.user || {};
+        const scope = req.query.scope;
         if (!email) {
             return res.status(401).json({
                 success: false,
@@ -82,7 +85,9 @@ const getAllProjects = async (req, res) => {
             });
         }
 
+        const whereClause = scope === 'all' ? {} : { email };
         const projects = await prisma.projectRecords.findMany({
+            where: whereClause,
             orderBy: {
                 start_date: 'desc'
             }
@@ -336,7 +341,6 @@ module.exports = {
     requestHideProject,
     requestUnhideProject,
 };
-
 
 
 // const prisma = require("../config/prisma");
