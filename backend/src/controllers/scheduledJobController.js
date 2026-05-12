@@ -48,7 +48,7 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
     const allUsers = await prisma.users.findMany({
       where: {
         team: {
-          in: ["Editorial_Maths", "Editorial_Science", "Editorial_SST", "Editorial_English", "DTP_Raj", "CSMA_Maths", "CSMA_Science", "CSMA_Intern","CSMA_Technology","DTP_Suman","DTP_Naveen","CSMA_English","Animation_Maths","Editorial_University","Editorial_Eco&Com","University_&_Titles","DTP_Rimpi","Digital_Marketing","FK_Editorial_Maths","Editorial_Hindi"]
+          in: ["Editorial_Maths", "Editorial_Science", "Editorial_SST", "Editorial_English", "DTP_Raj", "CSMA_Maths", "CSMA_Science", "CSMA_Intern","CSMA_Technology","DTP_Suman","DTP_Naveen","CSMA_English","Animation_Maths","Editorial_University","Editorial_Eco&Com","University_&_Titles","DTP_Rimpi","Digital_Marketing"]
         }
       },
       select: {
@@ -127,6 +127,11 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
           console.log(`${user.name} - already has entries in MasterDatabase and no pending entries in TodaysWorklog`);
           continue;
         } else {
+          const isSundayUtc = today.getUTCDay() === 0;
+          if (isSundayUtc) {
+            console.log(`No worklog entries found for ${user.name} (Sunday) - skipping full day leave`);
+            continue;
+          }
           // No data found anywhere - push leave of 7.5 hours
           console.log(`No worklog entries found for ${user.name} - assigning full day leave`);
           
@@ -189,8 +194,11 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
 
           entriesToSubmit.push(masterEntry);
 
-          // Check if any entry has Half Day work mode
-          if (entry.work_mode === "Half Day") {
+          // Check if any entry has Half Day work mode, or WFH with under 5 hours (same partial leave as Half Day)
+          if (
+            entry.work_mode === "Half Day" ||
+            (entry.work_mode === "WFH" && (Number(entry.hours_spent) || 0) < 5)
+          ) {
             hasHalfDay = true;
           }
         }
@@ -338,9 +346,6 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 
 
 
-
-
-
 // const prisma = require("../config/prisma");
 
 // function getUTCDateOnly() {
@@ -348,12 +353,42 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 // }
 
+// // In-memory lock to prevent concurrent execution
+// let isProcessing = false;
+// let lastProcessedDate = null;
+
 // exports.autoSubmitWorklogsAndAssignLeave = async () => {
 //   try {
-//     console.log("Starting auto-submit worklogs and leave assignment job...");
-
-//     // Get today's date (no time portion)
 //     const today = getUTCDateOnly();
+//     const todayString = today.toISOString().split('T')[0];
+
+//     // CRITICAL: Check if already processing
+//     if (isProcessing) {
+//       console.log("⚠️  Auto-submit job already in progress. Skipping this trigger.");
+//       return {
+//         success: false,
+//         message: "Auto-submit job already in progress",
+//         skipped: true,
+//         reason: "concurrent_execution_prevented"
+//       };
+//     }
+
+//     // CRITICAL: Check if already processed today
+//     if (lastProcessedDate === todayString) {
+//       console.log(`⚠️  Auto-submit already completed for ${todayString}. Skipping.`);
+//       return {
+//         success: false,
+//         message: `Auto-submit already completed for ${todayString}`,
+//         alreadyProcessed: true,
+//         processedDate: lastProcessedDate
+//       };
+//     }
+
+//     // Set processing flag
+//     isProcessing = true;
+//     console.log(`🚀 Starting auto-submit worklogs and leave assignment job for ${todayString}...`);
+//     console.log(`   Trigger time: ${new Date().toISOString()}`);
+
 //     const tomorrow = new Date(today);
 //     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
@@ -361,8 +396,8 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //     const allUsers = await prisma.users.findMany({
 //       where: {
 //         team: {
-//             in: ["Editorial_Maths", "Editorial_Science", "Editorial_SST","Editorial_English","DTP_Raj","CSMA_Maths","CSMA_Science","CSMA_Intern"]
-//           }
+//           in: ["Editorial_Maths", "Editorial_Science", "Editorial_SST", "Editorial_English", "DTP_Raj", "CSMA_Maths", "CSMA_Science", "CSMA_Intern","CSMA_Technology","DTP_Suman","DTP_Naveen","CSMA_English","Animation_Maths","Editorial_University","Editorial_Eco&Com","University_&_Titles","DTP_Rimpi","Digital_Marketing","FK_Editorial_Maths","Editorial_Hindi"]
+//         }
 //       },
 //       select: {
 //         email: true,
@@ -374,6 +409,7 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 
 //     if (allUsers.length === 0) {
 //       console.log("No users found in database");
+//       isProcessing = false;
 //       return { success: true, message: "No users found", processed: 0, submitted: 0, leaveAssigned: 0 };
 //     }
 
@@ -495,7 +531,7 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //             audit_status: "Pending",
 //             name: user.name,
 //             team: user.team || "",
-//             created_at: entry.created_at || new Date(), 
+//             created_at: entry.created_at || new Date(),
 //             submitted_at: new Date()
 //           };
 
@@ -526,8 +562,8 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //             audit_status: "Pending",
 //             name: user.name,
 //             team: user.team || "",
-//             created_at: new Date(),     
-//             submitted_at: new Date()     
+//             created_at: new Date(),
+//             submitted_at: new Date()
 //           };
 //           entriesToSubmit.push(additionalLeaveEntry);
 //         }
@@ -540,12 +576,12 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //           });
           
 //           // Clear today's worklog entries after successful submission
-//           await prisma.todaysWorklog.deleteMany({
-//             where: {
-//               name: { equals: user.name, mode: "insensitive" },
-//               date: today,
-//             }
-//           });
+//           // await prisma.todaysWorklog.deleteMany({
+//           //   where: {
+//           //     name: { equals: user.name, mode: "insensitive" },
+//           //     date: today,
+//           //   }
+//           // });
           
 //           totalSubmitted += entriesToSubmit.length;
 //           processedUsers.push({ 
@@ -569,13 +605,13 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //           }
           
 //           if (individualSubmitted > 0) {
-//             // Clear today's worklog entries after successful individual submissions
-//             await prisma.todaysWorklog.deleteMany({
-//               where: {
-//                 name: { equals: user.name, mode: "insensitive" },
-//                 date: today,
-//               }
-//             });
+//             // // Clear today's worklog entries after successful individual submissions
+//             // await prisma.todaysWorklog.deleteMany({
+//             //   where: {
+//             //     name: { equals: user.name, mode: "insensitive" },
+//             //     date: today,
+//             //   }
+//             // });
             
 //             totalSubmitted += individualSubmitted;
 //             processedUsers.push({ 
@@ -588,9 +624,14 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //       }
 //     }
 
-//     console.log(`Auto-submit and leave assignment completed:`);
+//     console.log(`✅ Auto-submit and leave assignment completed:`);
 //     console.log(`- Total entries submitted: ${totalSubmitted}`);
 //     console.log(`- Total leave entries assigned: ${totalLeaveAssigned}`);
+//     console.log(`- Processing completed at: ${new Date().toISOString()}`);
+
+//     // CRITICAL: Mark as processed for today
+//     lastProcessedDate = todayString;
+//     isProcessing = false;
 
 //     return {
 //       success: true,
@@ -598,11 +639,14 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //       processed: allUsers.length,
 //       submitted: totalSubmitted,
 //       leaveAssigned: totalLeaveAssigned,
+//       processedDate: todayString,
 //       processedUsers
 //     };
 
 //   } catch (error) {
-//     console.error("Auto-submit worklogs and leave assignment job failed:", error);
+//     console.error("❌ Auto-submit worklogs and leave assignment job failed:", error);
+//     isProcessing = false; // CRITICAL: Release lock on error
+    
 //     return {
 //       success: false,
 //       message: "Auto-submit and leave assignment failed",
@@ -611,20 +655,16 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //   }
 // };
 
-// // Keep the old function for backward compatibility (but mark as deprecated)
+// // Keep the old function for backward compatibility
 // exports.autoAssignLeaveForAllEmployees = async () => {
 //   console.warn("⚠️  autoAssignLeaveForAllEmployees is deprecated. Use autoSubmitWorklogsAndAssignLeave instead.");
 //   return exports.autoSubmitWorklogsAndAssignLeave();
 // };
 
-
+// // Manual trigger endpoint
 // exports.manualTriggerAutoSubmitAndLeave = async (req, res) => {
 //   try {
-//     // Optional: Add admin role check here
-//     // if (req.user?.role?.toLowerCase() !== 'admin') {
-//     //   return res.status(403).json({ success: false, message: "Admin access required" });
-//     // }
-
+//     console.log("📍 External cron job triggered at:", new Date().toISOString());
 //     const result = await exports.autoSubmitWorklogsAndAssignLeave();
     
 //     return res.json(result);
@@ -643,4 +683,3 @@ exports.manualTriggerAutoLeave = async (req, res) => {
 //   console.warn("⚠️  manualTriggerAutoLeave is deprecated. Use manualTriggerAutoSubmitAndLeave instead.");
 //   return exports.manualTriggerAutoSubmitAndLeave(req, res);
 // };
-
