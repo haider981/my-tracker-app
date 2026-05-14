@@ -169,6 +169,8 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
 
         const entriesToSubmit = [];
         let hasHalfDay = false;
+        let totalWfhHours = 0;
+        let hasAnyWfhEntry = false;
 
         // Process each entry for this user
         for (const entry of userTodaysEntries) {
@@ -194,16 +196,21 @@ exports.autoSubmitWorklogsAndAssignLeave = async () => {
 
           entriesToSubmit.push(masterEntry);
 
-          // Check if any entry has Half Day work mode, or WFH with under 5 hours (same partial leave as Half Day)
-          if (
-            entry.work_mode === "Half Day" ||
-            (entry.work_mode === "WFH" && (Number(entry.hours_spent) || 0) < 5)
-          ) {
+          if (entry.work_mode === "Half Day") {
             hasHalfDay = true;
+          }
+          if (entry.work_mode === "WFH") {
+            hasAnyWfhEntry = true;
+            totalWfhHours += Number(entry.hours_spent) || 0;
           }
         }
 
-        // If Half Day found, add additional 3.75hrs leave entry
+        // WFH: partial leave only when combined WFH hours for the day are under 5 (not per single row)
+        if (hasAnyWfhEntry && totalWfhHours < 5) {
+          hasHalfDay = true;
+        }
+
+        // If Half Day or combined WFH hours < 5, add additional 3.75hrs leave entry
         if (hasHalfDay) {
           console.log(`Half Day entry found for ${user.name} - adding 3.75hrs leave entry`);
           const additionalLeaveEntry = {
